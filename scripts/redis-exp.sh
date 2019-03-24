@@ -1,10 +1,10 @@
 #!/bin/bash
 
-redis="/usr/home/hongbo/sls-bench/redis/src/redis-server"
-sls="/usr/home/hongbo/sls/tools/slsctl/slsctl"
-ycsb="/usr/home/hongbo/sls-bench/YCSB/"
-redisbench="/usr/home/hongbo/sls-bench/redis/src/redis-benchmark"
-sls="/usr/home/hongbo/sls/tools/slsctl/slsctl"
+redis="/mnt/hongbo/sls-bench/redis/src/redis-server"
+sls="/mnt/hongbo/sls/tools/slsctl/slsctl"
+ycsb="/mnt/hongbo/sls-bench/YCSB/"
+redisbench="/mnt/hongbo/sls-bench/redis/src/redis-benchmark"
+sls="/mnt/hongbo/sls/tools/slsctl/slsctl"
 
 clean_dump () {
 	rm -f appendonly.aof dump.rdb slsdump.x
