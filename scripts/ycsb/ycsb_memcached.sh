@@ -30,9 +30,10 @@ start_memcached_ycsb() {
         output=$2
         cd $YCSB_PATH
         echo "+++++ Load YCSB +++++"
-        ./bin/ycsb load memcached -s -P $wkld -p "memcached.hosts=127.0.0.1" 
         sleep 3
+        ./bin/ycsb load memcached -s -P $wkld -p "memcached.hosts=127.0.0.1" 
         echo "+++++ Start YCSB +++++"
+        sleep 3
         ./bin/ycsb run memcached -s -P $wkld -p "memcached.hosts=127.0.0.1" > $output 
         cd $pwd
         sleep 3
@@ -41,17 +42,16 @@ start_memcached_ycsb() {
 for ((rnd=0; rnd < $ROUND; rnd++)); do
         for wkld in ${wklds[@]}; do
                 echo "+++++ $wkld $rnd/$ROUND +++++"
+                sleep 3
                 output=$OUTPATH/$out_prefix-$wkld-$rnd.txt
                 wkld=$WKLD_PATH/$wkld
-                echo $wkld
-                echo $output
 
                 start_memcached
                 if [ $exp_type == 'sls' ]
                 then
                         kldload $SLSKO
-                        sleep 3
                         echo "+++++ start ckpt +++++"
+                        sleep 3
                         $SLS cpktstart -p `pidof memcached` -t $4 -f $PWD/slsdump.x -d
                         sleep 5
                 fi

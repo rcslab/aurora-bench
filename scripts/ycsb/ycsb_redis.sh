@@ -39,9 +39,10 @@ start_redis_ycsb() {
         output=$2
         cd $YCSB_PATH
         echo "+++++ Load YCSB +++++"
-        ./bin/ycsb load redis -s -P $wkld -p "redis.host=127.0.0.1" -p "redis.port=6379" 
         sleep 3
+        ./bin/ycsb load redis -s -P $wkld -p "redis.host=127.0.0.1" -p "redis.port=6379" 
         echo "+++++ Start YCSB +++++"
+        sleep 3
         ./bin/ycsb run redis -s -P $wkld -p "redis.host=127.0.0.1" -p "redis.port=6379" > $output 
         cd $pwd
         sleep 3
@@ -50,6 +51,7 @@ start_redis_ycsb() {
 for ((rnd=0; rnd < $ROUND; rnd++)); do
         for wkld in ${wklds[@]}; do
                 echo "+++++ $wkld $rnd/$ROUND +++++"
+                sleep 3
                 output=$OUTPATH/$out_prefix-$wkld-$rnd.txt
                 wkld=$WKLD_PATH/$wkld
 
@@ -57,8 +59,8 @@ for ((rnd=0; rnd < $ROUND; rnd++)); do
                 then
                         start_redis mem
                         kldload $SLSKO
-                        sleep 3
                         echo "+++++ start ckpt +++++"
+                        sleep 3
                         $SLS ckptstart -p `pidof redis-server` -t $4 -f $PWD/slsdump.x -d
                         sleep 5
                 else
