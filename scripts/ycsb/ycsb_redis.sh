@@ -9,9 +9,8 @@ exp_type=$3
 out_prefix=$2
 pwd=$PWD
 
-
-
 start_redis () {
+        echo "+++++ start redis +++++"
 	redis_type=$1
 	printf "Start Redis server in %s mode\n" $redis_type
 	if [ $redis_type == 'mem' ]
@@ -39,43 +38,43 @@ start_redis_ycsb() {
         wkld=$1
         output=$2
         cd $YCSB_PATH
-        ./bin/ycsb load redis -s -P $wkld -p "redis.host=127.0.0.1" -p "redis.port=6379" > $output 
+        echo "+++++ Load YCSB +++++"
+        ./bin/ycsb load redis -s -P $wkld -p "redis.host=127.0.0.1" -p "redis.port=6379" 
+        sleep 3
+        echo "+++++ Start YCSB +++++"
         ./bin/ycsb run redis -s -P $wkld -p "redis.host=127.0.0.1" -p "redis.port=6379" > $output 
         cd $pwd
         sleep 3
 }
 
-run_all_wklds () {
-        wkld=$1
-        for met in "${@:2}"
-        do
-                echo bash redis-exp.sh $ROUND $met $wkld $SIZE $OUTPATH/$wkld-$met
-                grep "Throughput" -R $OUTPATH/$wkld-$met-* | awk '{print $3}' | python3 meanstd.py > $wkld-$met.sum
-        done
-}
-
-
 for ((rnd=0; rnd < $ROUND; rnd++)); do
         for wkld in ${wklds[@]}; do
-                echo $wkld
+                echo "+++++ $wkld $rnd/$ROUND +++++"
                 output=$OUTPATH/$out_prefix-$wkld-$rnd.txt
                 wkld=$WKLD_PATH/$wkld
-                echo $wkld
-                echo $output
 
                 if [ $exp_type == 'sls' ]
                 then
                         start_redis mem
-                        $SLS cpktstart -p `pidof redis-server` -t $4 -n $5 -f $PWD/slsdump.x -d
+                        kldload $SLSKO
+                        sleep 3
+                        echo "+++++ start ckpt +++++"
+                        $SLS ckptstart -p `pidof redis-server` -t $4 -f $PWD/slsdump.x -d
+                        sleep 5
                 else
-                        echo start
                         start_redis $exp_type
                 fi
 
-                echo start YCSB benchmark
                 start_redis_ycsb $wkld $output
 
                 cd $pwd
+                if [ $exp_type == 'sls' ]
+                then
+                        echo "+++++ stop ckpt +++++"
+                        $SLS ckptstop -p `pidof redis-server`
+                        sleep 5
+                        kldunload $SLSKO
+                fi
                 stop_exp
         done
         sleep 3
