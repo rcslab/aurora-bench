@@ -52,7 +52,7 @@ for ((rnd=0; rnd < $ROUND; rnd++)); do
                         kldload $SLSKO
                         echo "+++++ start ckpt +++++"
                         sleep 3
-                        $SLS cpktstart -p `pidof memcached` -t $4 -f $PWD/slsdump.x -d
+                        $SLS ckptstart -p `pidof memcached` -t $4 -f $PWD/slsdump.x -d
                         sleep 5
                 fi
 
@@ -61,7 +61,7 @@ for ((rnd=0; rnd < $ROUND; rnd++)); do
                 cd $pwd
                 if [ $exp_type == 'sls' ]
                 then
-                        echo "+++++ stop ckpt ++++"
+                        echo "+++++ stop ckpt +++++"
                         $SLS ckptstop -p `pidof memcached`
                         sleep 5
                         kldunload $SLSKO
