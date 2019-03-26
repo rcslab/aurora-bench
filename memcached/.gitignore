@@ -1,0 +1,6 @@
+*.o
+memcached 
+memcached-debug 
+sizes 
+testapp
+timedrun 
