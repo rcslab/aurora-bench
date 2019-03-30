@@ -36,6 +36,7 @@ start_memcached_ycsb() {
         if [ $exp_type == 'sls' ]
         then
                 echo "+++++ start ckpt +++++"
+		kldload $SLSKO
                 sleep 3
                 echo $SLS ckptstart -p `pidof memcached` -t $3 -f $PWD/slsdump.x -d
                 $SLS ckptstart -p `pidof memcached` -t $3 -f $PWD/slsdump.x -d
@@ -64,10 +65,11 @@ for ((rnd=0; rnd < $ROUND; rnd++)); do
                 if [ $exp_type == 'sls' ]
                 then
                         echo "+++++ stop ckpt +++++"
-                        sleep 5
                         echo $SLS ckptstop -p `pidof memcached`
                         $SLS ckptstop -p `pidof memcached`
+                        sleep 5
                         echo "+++++ stopped +++++"
+			kldunload $SLSKO
                 fi
 		sleep 3
 

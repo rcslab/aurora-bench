@@ -42,7 +42,14 @@ start_redis_ycsb() {
         sleep 3
         ./bin/ycsb load redis -s -P $wkld -p "redis.host=127.0.0.1" -p "redis.port=6379" 
         echo "+++++ Start YCSB +++++"
-        sleep 3
+
+        if [ $exp_type == 'sls' ]
+        then
+                echo "+++++ start ckpt +++++"
+                kldload $SLSKO
+                $SLS ckptstart -p `pidof redis-server` -t $3 -f $PWD/slsdump.x -d
+        fi
+        sleep 5
         ./bin/ycsb run redis -s -P $wkld -p "redis.host=127.0.0.1" -p "redis.port=6379" > $output 
         cd $pwd
         sleep 3
@@ -58,16 +65,11 @@ for ((rnd=0; rnd < $ROUND; rnd++)); do
                 if [ $exp_type == 'sls' ]
                 then
                         start_redis mem
-                        kldload $SLSKO
-                        echo "+++++ start ckpt +++++"
-                        sleep 3
-                        $SLS ckptstart -p `pidof redis-server` -t $4 -f $PWD/slsdump.x -d
-                        sleep 5
                 else
                         start_redis $exp_type
                 fi
 
-                start_redis_ycsb $wkld $output
+                start_redis_ycsb $wkld $output $4
 
                 cd $pwd
                 if [ $exp_type == 'sls' ]
