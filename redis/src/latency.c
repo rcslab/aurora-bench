@@ -476,19 +476,19 @@ sds createLatencyReport(void) {
 /* latencyCommand() helper to produce a time-delay reply for all the samples
  * in memory for the specified time series. */
 void latencyCommandReplyWithSamples(client *c, struct latencyTimeSeries *ts) {
-    void *replylen = addReplyDeferredLen(c);
+    void *replylen = addDeferredMultiBulkLength(c);
     int samples = 0, j;
 
     for (j = 0; j < LATENCY_TS_LEN; j++) {
         int i = (ts->idx + j) % LATENCY_TS_LEN;
 
         if (ts->samples[i].time == 0) continue;
-        addReplyArrayLen(c,2);
+        addReplyMultiBulkLen(c,2);
         addReplyLongLong(c,ts->samples[i].time);
         addReplyLongLong(c,ts->samples[i].latency);
         samples++;
     }
-    setDeferredArrayLen(c,replylen,samples);
+    setDeferredMultiBulkLength(c,replylen,samples);
 }
 
 /* latencyCommand() helper to produce the reply for the LATEST subcommand,
@@ -497,14 +497,14 @@ void latencyCommandReplyWithLatestEvents(client *c) {
     dictIterator *di;
     dictEntry *de;
 
-    addReplyArrayLen(c,dictSize(server.latency_events));
+    addReplyMultiBulkLen(c,dictSize(server.latency_events));
     di = dictGetIterator(server.latency_events);
     while((de = dictNext(di)) != NULL) {
         char *event = dictGetKey(de);
         struct latencyTimeSeries *ts = dictGetVal(de);
         int last = (ts->idx + LATENCY_TS_LEN - 1) % LATENCY_TS_LEN;
 
-        addReplyArrayLen(c,4);
+        addReplyMultiBulkLen(c,4);
         addReplyBulkCString(c,event);
         addReplyLongLong(c,ts->samples[last].time);
         addReplyLongLong(c,ts->samples[last].latency);
@@ -583,7 +583,7 @@ NULL
         /* LATENCY HISTORY <event> */
         ts = dictFetchValue(server.latency_events,c->argv[2]->ptr);
         if (ts == NULL) {
-            addReplyArrayLen(c,0);
+            addReplyMultiBulkLen(c,0);
         } else {
             latencyCommandReplyWithSamples(c,ts);
         }

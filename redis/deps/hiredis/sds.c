@@ -219,10 +219,7 @@ sds sdsMakeRoomFor(sds s, size_t addlen) {
     hdrlen = sdsHdrSize(type);
     if (oldtype==type) {
         newsh = s_realloc(sh, hdrlen+newlen+1);
-        if (newsh == NULL) {
-            s_free(sh);
-            return NULL;
-        }
+        if (newsh == NULL) return NULL;
         s = (char*)newsh+hdrlen;
     } else {
         /* Since the header size changes, need to move the string forward,
@@ -595,7 +592,6 @@ sds sdscatfmt(sds s, char const *fmt, ...) {
         /* Make sure there is always space for at least 1 char. */
         if (sdsavail(s)==0) {
             s = sdsMakeRoomFor(s,1);
-            if (s == NULL) goto fmt_error;
         }
 
         switch(*f) {
@@ -609,7 +605,6 @@ sds sdscatfmt(sds s, char const *fmt, ...) {
                 l = (next == 's') ? strlen(str) : sdslen(str);
                 if (sdsavail(s) < l) {
                     s = sdsMakeRoomFor(s,l);
-                    if (s == NULL) goto fmt_error;
                 }
                 memcpy(s+i,str,l);
                 sdsinclen(s,l);
@@ -626,7 +621,6 @@ sds sdscatfmt(sds s, char const *fmt, ...) {
                     l = sdsll2str(buf,num);
                     if (sdsavail(s) < l) {
                         s = sdsMakeRoomFor(s,l);
-                        if (s == NULL) goto fmt_error;
                     }
                     memcpy(s+i,buf,l);
                     sdsinclen(s,l);
@@ -644,7 +638,6 @@ sds sdscatfmt(sds s, char const *fmt, ...) {
                     l = sdsull2str(buf,unum);
                     if (sdsavail(s) < l) {
                         s = sdsMakeRoomFor(s,l);
-                        if (s == NULL) goto fmt_error;
                     }
                     memcpy(s+i,buf,l);
                     sdsinclen(s,l);
@@ -669,10 +662,6 @@ sds sdscatfmt(sds s, char const *fmt, ...) {
     /* Add null-term */
     s[i] = '\0';
     return s;
-
-fmt_error:
-    va_end(ap);
-    return NULL;
 }
 
 /* Remove the part of the string from left and from right composed just of
@@ -1029,18 +1018,10 @@ sds *sdssplitargs(const char *line, int *argc) {
                 if (*p) p++;
             }
             /* add the token to the vector */
-            {
-                char **new_vector = s_realloc(vector,((*argc)+1)*sizeof(char*));
-                if (new_vector == NULL) {
-                    s_free(vector);
-                    return NULL;
-                }
-                
-                vector = new_vector;
-                vector[*argc] = current;
-                (*argc)++;
-                current = NULL;
-            }
+            vector = s_realloc(vector,((*argc)+1)*sizeof(char*));
+            vector[*argc] = current;
+            (*argc)++;
+            current = NULL;
         } else {
             /* Even on empty input string return something not NULL. */
             if (vector == NULL) vector = s_malloc(sizeof(void*));

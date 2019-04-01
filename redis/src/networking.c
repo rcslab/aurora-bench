@@ -107,7 +107,6 @@ client *createClient(int fd) {
     uint64_t client_id;
     atomicGetIncr(server.next_client_id,client_id,1);
     c->id = client_id;
-    c->resp = 2;
     c->fd = fd;
     c->name = NULL;
     c->bufpos = 0;
@@ -119,15 +118,12 @@ client *createClient(int fd) {
     c->argc = 0;
     c->argv = NULL;
     c->cmd = c->lastcmd = NULL;
-    c->user = DefaultUser;
     c->multibulklen = 0;
     c->bulklen = -1;
     c->sentlen = 0;
     c->flags = 0;
     c->ctime = c->lastinteraction = server.unixtime;
-    /* If the default user does not require authentication, the user is
-     * directly authenticated. */
-    c->authenticated = (c->user->flags & USER_FLAG_NOPASS) != 0;
+    c->authenticated = 0;
     c->replstate = REPL_STATE_NONE;
     c->repl_put_online_on_ack = 0;
     c->reploff = 0;
@@ -256,7 +252,7 @@ int _addReplyToBuffer(client *c, const char *s, size_t len) {
     return C_OK;
 }
 
-void _addReplyProtoToList(client *c, const char *s, size_t len) {
+void _addReplyStringToList(client *c, const char *s, size_t len) {
     if (c->flags & CLIENT_CLOSE_AFTER_REPLY) return;
 
     listNode *ln = listLast(c->reply);
@@ -303,7 +299,7 @@ void addReply(client *c, robj *obj) {
 
     if (sdsEncodedObject(obj)) {
         if (_addReplyToBuffer(c,obj->ptr,sdslen(obj->ptr)) != C_OK)
-            _addReplyProtoToList(c,obj->ptr,sdslen(obj->ptr));
+            _addReplyStringToList(c,obj->ptr,sdslen(obj->ptr));
     } else if (obj->encoding == OBJ_ENCODING_INT) {
         /* For integer encoded strings we just convert it into a string
          * using our optimized function, and attach the resulting string
@@ -311,7 +307,7 @@ void addReply(client *c, robj *obj) {
         char buf[32];
         size_t len = ll2string(buf,sizeof(buf),(long)obj->ptr);
         if (_addReplyToBuffer(c,buf,len) != C_OK)
-            _addReplyProtoToList(c,buf,len);
+            _addReplyStringToList(c,buf,len);
     } else {
         serverPanic("Wrong obj->encoding in addReply()");
     }
@@ -326,7 +322,7 @@ void addReplySds(client *c, sds s) {
         return;
     }
     if (_addReplyToBuffer(c,s,sdslen(s)) != C_OK)
-        _addReplyProtoToList(c,s,sdslen(s));
+        _addReplyStringToList(c,s,sdslen(s));
     sdsfree(s);
 }
 
@@ -336,12 +332,12 @@ void addReplySds(client *c, sds s) {
  *
  * It is efficient because does not create an SDS object nor an Redis object
  * if not needed. The object will only be created by calling
- * _addReplyProtoToList() if we fail to extend the existing tail object
+ * _addReplyStringToList() if we fail to extend the existing tail object
  * in the list of objects. */
-void addReplyProto(client *c, const char *s, size_t len) {
+void addReplyString(client *c, const char *s, size_t len) {
     if (prepareClientToWrite(c) != C_OK) return;
     if (_addReplyToBuffer(c,s,len) != C_OK)
-        _addReplyProtoToList(c,s,len);
+        _addReplyStringToList(c,s,len);
 }
 
 /* Low level function called by the addReplyError...() functions.
@@ -355,9 +351,9 @@ void addReplyProto(client *c, const char *s, size_t len) {
 void addReplyErrorLength(client *c, const char *s, size_t len) {
     /* If the string already starts with "-..." then the error code
      * is provided by the caller. Otherwise we use "-ERR". */
-    if (!len || s[0] != '-') addReplyProto(c,"-ERR ",5);
-    addReplyProto(c,s,len);
-    addReplyProto(c,"\r\n",2);
+    if (!len || s[0] != '-') addReplyString(c,"-ERR ",5);
+    addReplyString(c,s,len);
+    addReplyString(c,"\r\n",2);
 
     /* Sometimes it could be normal that a slave replies to a master with
      * an error and this function gets called. Actually the error will never
@@ -400,9 +396,9 @@ void addReplyErrorFormat(client *c, const char *fmt, ...) {
 }
 
 void addReplyStatusLength(client *c, const char *s, size_t len) {
-    addReplyProto(c,"+",1);
-    addReplyProto(c,s,len);
-    addReplyProto(c,"\r\n",2);
+    addReplyString(c,"+",1);
+    addReplyString(c,s,len);
+    addReplyString(c,"\r\n",2);
 }
 
 void addReplyStatus(client *c, const char *status) {
@@ -420,28 +416,28 @@ void addReplyStatusFormat(client *c, const char *fmt, ...) {
 
 /* Adds an empty object to the reply list that will contain the multi bulk
  * length, which is not known when this function is called. */
-void *addReplyDeferredLen(client *c) {
+void *addDeferredMultiBulkLength(client *c) {
     /* Note that we install the write event here even if the object is not
      * ready to be sent, since we are sure that before returning to the
-     * event loop setDeferredAggregateLen() will be called. */
+     * event loop setDeferredMultiBulkLength() will be called. */
     if (prepareClientToWrite(c) != C_OK) return NULL;
     listAddNodeTail(c->reply,NULL); /* NULL is our placeholder. */
     return listLast(c->reply);
 }
 
 /* Populate the length object and try gluing it to the next chunk. */
-void setDeferredAggregateLen(client *c, void *node, long length, char prefix) {
+void setDeferredMultiBulkLength(client *c, void *node, long length) {
     listNode *ln = (listNode*)node;
     clientReplyBlock *next;
     char lenstr[128];
-    size_t lenstr_len = sprintf(lenstr, "%c%ld\r\n", prefix, length);
+    size_t lenstr_len = sprintf(lenstr, "*%ld\r\n", length);
 
     /* Abort when *node is NULL: when the client should not accept writes
-     * we return NULL in addReplyDeferredLen() */
+     * we return NULL in addDeferredMultiBulkLength() */
     if (node == NULL) return;
     serverAssert(!listNodeValue(ln));
 
-    /* Normally we fill this dummy NULL node, added by addReplyDeferredLen(),
+    /* Normally we fill this dummy NULL node, added by addDeferredMultiBulkLength(),
      * with a new buffer structure containing the protocol needed to specify
      * the length of the array following. However sometimes when there is
      * little memory to move, we may instead remove this NULL node, and prefix
@@ -471,55 +467,18 @@ void setDeferredAggregateLen(client *c, void *node, long length, char prefix) {
     asyncCloseClientOnOutputBufferLimitReached(c);
 }
 
-void setDeferredArrayLen(client *c, void *node, long length) {
-    setDeferredAggregateLen(c,node,length,'*');
-}
-
-void setDeferredMapLen(client *c, void *node, long length) {
-    int prefix = c->resp == 2 ? '*' : '%';
-    if (c->resp == 2) length *= 2;
-    setDeferredAggregateLen(c,node,length,prefix);
-}
-
-void setDeferredSetLen(client *c, void *node, long length) {
-    int prefix = c->resp == 2 ? '*' : '~';
-    setDeferredAggregateLen(c,node,length,prefix);
-}
-
-void setDeferredAttributeLen(client *c, void *node, long length) {
-    int prefix = c->resp == 2 ? '*' : '|';
-    if (c->resp == 2) length *= 2;
-    setDeferredAggregateLen(c,node,length,prefix);
-}
-
-void setDeferredPushLen(client *c, void *node, long length) {
-    int prefix = c->resp == 2 ? '*' : '>';
-    setDeferredAggregateLen(c,node,length,prefix);
-}
-
 /* Add a double as a bulk reply */
 void addReplyDouble(client *c, double d) {
+    char dbuf[128], sbuf[128];
+    int dlen, slen;
     if (isinf(d)) {
         /* Libc in odd systems (Hi Solaris!) will format infinite in a
          * different way, so better to handle it in an explicit way. */
-        if (c->resp == 2) {
-            addReplyBulkCString(c, d > 0 ? "inf" : "-inf");
-        } else {
-            addReplyProto(c, d > 0 ? ",inf\r\n" : "-inf\r\n",
-                              d > 0 ? 6 : 7);
-        }
+        addReplyBulkCString(c, d > 0 ? "inf" : "-inf");
     } else {
-        char dbuf[MAX_LONG_DOUBLE_CHARS+3],
-             sbuf[MAX_LONG_DOUBLE_CHARS+32];
-        int dlen, slen;
-        if (c->resp == 2) {
-            dlen = snprintf(dbuf,sizeof(dbuf),"%.17g",d);
-            slen = snprintf(sbuf,sizeof(sbuf),"$%d\r\n%s\r\n",dlen,dbuf);
-            addReplyProto(c,sbuf,slen);
-        } else {
-            dlen = snprintf(dbuf,sizeof(dbuf),",%.17g\r\n",d);
-            addReplyProto(c,dbuf,dlen);
-        }
+        dlen = snprintf(dbuf,sizeof(dbuf),"%.17g",d);
+        slen = snprintf(sbuf,sizeof(sbuf),"$%d\r\n%s\r\n",dlen,dbuf);
+        addReplyString(c,sbuf,slen);
     }
 }
 
@@ -527,17 +486,9 @@ void addReplyDouble(client *c, double d) {
  * of the double instead of exposing the crude behavior of doubles to the
  * dear user. */
 void addReplyHumanLongDouble(client *c, long double d) {
-    if (c->resp == 2) {
-        robj *o = createStringObjectFromLongDouble(d,1);
-        addReplyBulk(c,o);
-        decrRefCount(o);
-    } else {
-        char buf[MAX_LONG_DOUBLE_CHARS];
-        int len = ld2string(buf,sizeof(buf),d,1);
-        addReplyProto(c,",",1);
-        addReplyProto(c,buf,len);
-        addReplyProto(c,"\r\n",2);
-    }
+    robj *o = createStringObjectFromLongDouble(d,1);
+    addReplyBulk(c,o);
+    decrRefCount(o);
 }
 
 /* Add a long long as integer reply or bulk len / multi bulk count.
@@ -561,7 +512,7 @@ void addReplyLongLongWithPrefix(client *c, long long ll, char prefix) {
     len = ll2string(buf+1,sizeof(buf)-1,ll);
     buf[len+1] = '\r';
     buf[len+2] = '\n';
-    addReplyProto(c,buf,len+3);
+    addReplyString(c,buf,len+3);
 }
 
 void addReplyLongLong(client *c, long long ll) {
@@ -573,65 +524,11 @@ void addReplyLongLong(client *c, long long ll) {
         addReplyLongLongWithPrefix(c,ll,':');
 }
 
-void addReplyAggregateLen(client *c, long length, int prefix) {
-    if (prefix == '*' && length < OBJ_SHARED_BULKHDR_LEN)
+void addReplyMultiBulkLen(client *c, long length) {
+    if (length < OBJ_SHARED_BULKHDR_LEN)
         addReply(c,shared.mbulkhdr[length]);
     else
-        addReplyLongLongWithPrefix(c,length,prefix);
-}
-
-void addReplyArrayLen(client *c, long length) {
-    addReplyAggregateLen(c,length,'*');
-}
-
-void addReplyMapLen(client *c, long length) {
-    int prefix = c->resp == 2 ? '*' : '%';
-    if (c->resp == 2) length *= 2;
-    addReplyAggregateLen(c,length,prefix);
-}
-
-void addReplySetLen(client *c, long length) {
-    int prefix = c->resp == 2 ? '*' : '~';
-    addReplyAggregateLen(c,length,prefix);
-}
-
-void addReplyAttributeLen(client *c, long length) {
-    int prefix = c->resp == 2 ? '*' : '|';
-    if (c->resp == 2) length *= 2;
-    addReplyAggregateLen(c,length,prefix);
-}
-
-void addReplyPushLen(client *c, long length) {
-    int prefix = c->resp == 2 ? '*' : '>';
-    addReplyAggregateLen(c,length,prefix);
-}
-
-void addReplyNull(client *c) {
-    if (c->resp == 2) {
-        addReplyProto(c,"$-1\r\n",5);
-    } else {
-        addReplyProto(c,"_\r\n",3);
-    }
-}
-
-void addReplyBool(client *c, int b) {
-    if (c->resp == 2) {
-        addReply(c, b ? shared.cone : shared.czero);
-    } else {
-        addReplyProto(c, b ? "#t\r\n" : "#f\r\n",4);
-    }
-}
-
-/* A null array is a concept that no longer exists in RESP3. However
- * RESP2 had it, so API-wise we have this call, that will emit the correct
- * RESP2 protocol, however for RESP3 the reply will always be just the
- * Null type "_\r\n". */
-void addReplyNullArray(client *c) {
-    if (c->resp == 2) {
-        addReplyProto(c,"*-1\r\n",5);
-    } else {
-        addReplyProto(c,"_\r\n",3);
-    }
+        addReplyLongLongWithPrefix(c,length,'*');
 }
 
 /* Create the length prefix of a bulk reply, example: $2234 */
@@ -670,7 +567,7 @@ void addReplyBulk(client *c, robj *obj) {
 /* Add a C buffer as bulk reply */
 void addReplyBulkCBuffer(client *c, const void *p, size_t len) {
     addReplyLongLongWithPrefix(c,len,'$');
-    addReplyProto(c,p,len);
+    addReplyString(c,p,len);
     addReply(c,shared.crlf);
 }
 
@@ -684,7 +581,7 @@ void addReplyBulkSds(client *c, sds s)  {
 /* Add a C null term string as bulk reply */
 void addReplyBulkCString(client *c, const char *s) {
     if (s == NULL) {
-        addReplyNull(c);
+        addReply(c,shared.nullbulk);
     } else {
         addReplyBulkCBuffer(c,s,strlen(s));
     }
@@ -699,42 +596,13 @@ void addReplyBulkLongLong(client *c, long long ll) {
     addReplyBulkCBuffer(c,buf,len);
 }
 
-/* Reply with a verbatim type having the specified extension.
- *
- * The 'ext' is the "extension" of the file, actually just a three
- * character type that describes the format of the verbatim string.
- * For instance "txt" means it should be interpreted as a text only
- * file by the receiver, "md " as markdown, and so forth. Only the
- * three first characters of the extension are used, and if the
- * provided one is shorter than that, the remaining is filled with
- * spaces. */
-void addReplyVerbatim(client *c, const char *s, size_t len, const char *ext) {
-    if (c->resp == 2) {
-        addReplyBulkCBuffer(c,s,len);
-    } else {
-        char buf[32];
-        size_t preflen = snprintf(buf,sizeof(buf),"=%zu\r\nxxx:",len+4);
-        char *p = buf+preflen-4;
-        for (int i = 0; i < 3; i++) {
-            if (*ext == '\0') {
-                p[i] = ' ';
-            } else {
-                p[i] = *ext++;
-            }
-        }
-        addReplyProto(c,buf,preflen);
-        addReplyProto(c,s,len);
-        addReplyProto(c,"\r\n",2);
-    }
-}
-
 /* Add an array of C strings as status replies with a heading.
  * This function is typically invoked by from commands that support
  * subcommands in response to the 'help' subcommand. The help array
  * is terminated by NULL sentinel. */
 void addReplyHelp(client *c, const char **help) {
     sds cmd = sdsnew((char*) c->argv[0]->ptr);
-    void *blenp = addReplyDeferredLen(c);
+    void *blenp = addDeferredMultiBulkLength(c);
     int blen = 0;
 
     sdstoupper(cmd);
@@ -745,7 +613,7 @@ void addReplyHelp(client *c, const char **help) {
     while (help[blen]) addReplyStatus(c,help[blen++]);
 
     blen++;  /* Account for the header line(s). */
-    setDeferredArrayLen(c,blenp,blen);
+    setDeferredMultiBulkLength(c,blenp,blen);
 }
 
 /* Add a suggestive error reply.
@@ -810,7 +678,7 @@ static void acceptCommonHandler(int fd, int flags, char *ip) {
      * user what to do to fix it if needed. */
     if (server.protected_mode &&
         server.bindaddr_count == 0 &&
-        DefaultUser->flags & USER_FLAG_NOPASS &&
+        server.requirepass == NULL &&
         !(flags & CLIENT_UNIX_SOCKET) &&
         ip != NULL)
     {
@@ -1781,7 +1649,7 @@ sds catClientInfoString(sds s, client *client) {
     if (emask & AE_WRITABLE) *p++ = 'w';
     *p = '\0';
     return sdscatfmt(s,
-        "id=%U addr=%s fd=%i name=%s age=%I idle=%I flags=%s db=%i sub=%i psub=%i multi=%i qbuf=%U qbuf-free=%U obl=%U oll=%U omem=%U events=%s cmd=%s user=%s",
+        "id=%U addr=%s fd=%i name=%s age=%I idle=%I flags=%s db=%i sub=%i psub=%i multi=%i qbuf=%U qbuf-free=%U obl=%U oll=%U omem=%U events=%s cmd=%s",
         (unsigned long long) client->id,
         getClientPeerId(client),
         client->fd,
@@ -1799,8 +1667,7 @@ sds catClientInfoString(sds s, client *client) {
         (unsigned long long) listLength(client->reply),
         (unsigned long long) getClientOutputBufferMemoryUsage(client),
         events,
-        client->lastcmd ? client->lastcmd->name : "NULL",
-        client->user ? client->user->name : "(superuser)");
+        client->lastcmd ? client->lastcmd->name : "NULL");
 }
 
 sds getAllClientsInfoString(int type) {
@@ -2026,7 +1893,7 @@ NULL
         if (c->name)
             addReplyBulk(c,c->name);
         else
-            addReplyNull(c);
+            addReply(c,shared.nullbulk);
     } else if (!strcasecmp(c->argv[1]->ptr,"pause") && c->argc == 3) {
         long long duration;
 
@@ -2037,63 +1904,6 @@ NULL
     } else {
         addReplyErrorFormat(c, "Unknown subcommand or wrong number of arguments for '%s'. Try CLIENT HELP", (char*)c->argv[1]->ptr);
     }
-}
-
-/* HELLO <protocol-version> [AUTH <user> <password>] */
-void helloCommand(client *c) {
-    long long ver;
-
-    if (getLongLongFromObject(c->argv[1],&ver) != C_OK ||
-        ver < 2 || ver > 3)
-    {
-        addReplyError(c,"-NOPROTO unsupported protocol version");
-        return;
-    }
-
-    /* Switching to protocol v2 is not allowed. But we send a specific
-     * error message in this case. */
-    if (ver == 2) {
-        addReplyError(c,"Switching to RESP version 2 is not allowed.");
-        return;
-    }
-
-    /* At this point we need to be authenticated to continue. */
-    if (!c->authenticated) {
-        addReplyError(c,"-NOAUTH HELLO must be called with the client already "
-                        "authenticated, otherwise the HELLO AUTH <user> <pass> "
-                        "option can be used to authenticate the client and "
-                        "select the RESP protocol version at the same time");
-        return;
-    }
-
-    /* Let's switch to RESP3 mode. */
-    c->resp = 3;
-    addReplyMapLen(c,7);
-
-    addReplyBulkCString(c,"server");
-    addReplyBulkCString(c,"redis");
-
-    addReplyBulkCString(c,"version");
-    addReplyBulkCString(c,REDIS_VERSION);
-
-    addReplyBulkCString(c,"proto");
-    addReplyLongLong(c,3);
-
-    addReplyBulkCString(c,"id");
-    addReplyLongLong(c,c->id);
-
-    addReplyBulkCString(c,"mode");
-    if (server.sentinel_mode) addReplyBulkCString(c,"sentinel");
-    if (server.cluster_enabled) addReplyBulkCString(c,"cluster");
-    else addReplyBulkCString(c,"standalone");
-
-    if (!server.sentinel_mode) {
-        addReplyBulkCString(c,"role");
-        addReplyBulkCString(c,server.masterhost ? "replica" : "master");
-    }
-
-    addReplyBulkCString(c,"modules");
-    addReplyLoadedModules(c);
 }
 
 /* This callback is bound to POST and "Host:" command names. Those are not

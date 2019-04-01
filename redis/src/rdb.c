@@ -1217,9 +1217,6 @@ werr: /* Write error. */
 
 /* Save the DB on disk. Return C_ERR on error, C_OK on success. */
 int rdbSave(char *filename, rdbSaveInfo *rsi) {
-    
-
-//============================================================================
     char tmpfile[256];
     char cwd[MAXPATHLEN]; /* Current working dir path for error messages. */
     FILE *fp;
@@ -2226,16 +2223,6 @@ void backgroundSaveDoneHandler(int exitcode, int bysignal) {
         serverPanic("Unknown RDB child type.");
         break;
     }
-}
-
-/* Kill the RDB saving child using SIGUSR1 (so that the parent will know
- * the child did not exit for an error, but because we wanted), and performs
- * the cleanup needed. */
-void killRDBChild(void) {
-    kill(server.rdb_child_pid,SIGUSR1);
-    rdbRemoveTempFile(server.rdb_child_pid);
-    closeChildInfoPipe();
-    updateDictResizePolicy();
 }
 
 /* Spawn an RDB child that writes the RDB to the sockets of the slaves

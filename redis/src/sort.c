@@ -505,7 +505,7 @@ void sortCommand(client *c) {
         addReplyError(c,"One or more scores can't be converted into double");
     } else if (storekey == NULL) {
         /* STORE option not specified, sent the sorting result to client */
-        addReplyArrayLen(c,outputlen);
+        addReplyMultiBulkLen(c,outputlen);
         for (j = start; j <= end; j++) {
             listNode *ln;
             listIter li;
@@ -519,7 +519,7 @@ void sortCommand(client *c) {
 
                 if (sop->type == SORT_OP_GET) {
                     if (!val) {
-                        addReplyNull(c);
+                        addReply(c,shared.nullbulk);
                     } else {
                         addReplyBulk(c,val);
                         decrRefCount(val);

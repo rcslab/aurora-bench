@@ -3031,6 +3031,7 @@ void clusterHandleSlaveFailover(void) {
         if (server.cluster->mf_end) {
             server.cluster->failover_auth_time = mstime();
             server.cluster->failover_auth_rank = 0;
+	    clusterDoBeforeSleep(CLUSTER_TODO_HANDLE_FAILOVER);
         }
         serverLog(LL_WARNING,
             "Start of election delayed for %lld milliseconds "
@@ -4126,7 +4127,7 @@ void clusterReplyMultiBulkSlots(client *c) {
      */
 
     int num_masters = 0;
-    void *slot_replylen = addReplyDeferredLen(c);
+    void *slot_replylen = addDeferredMultiBulkLength(c);
 
     dictEntry *de;
     dictIterator *di = dictGetSafeIterator(server.cluster->nodes);
@@ -4146,7 +4147,7 @@ void clusterReplyMultiBulkSlots(client *c) {
             }
             if (start != -1 && (!bit || j == CLUSTER_SLOTS-1)) {
                 int nested_elements = 3; /* slots (2) + master addr (1). */
-                void *nested_replylen = addReplyDeferredLen(c);
+                void *nested_replylen = addDeferredMultiBulkLength(c);
 
                 if (bit && j == CLUSTER_SLOTS-1) j++;
 
@@ -4162,7 +4163,7 @@ void clusterReplyMultiBulkSlots(client *c) {
                 start = -1;
 
                 /* First node reply position is always the master */
-                addReplyArrayLen(c, 3);
+                addReplyMultiBulkLen(c, 3);
                 addReplyBulkCString(c, node->ip);
                 addReplyLongLong(c, node->port);
                 addReplyBulkCBuffer(c, node->name, CLUSTER_NAMELEN);
@@ -4172,19 +4173,19 @@ void clusterReplyMultiBulkSlots(client *c) {
                     /* This loop is copy/pasted from clusterGenNodeDescription()
                      * with modifications for per-slot node aggregation */
                     if (nodeFailed(node->slaves[i])) continue;
-                    addReplyArrayLen(c, 3);
+                    addReplyMultiBulkLen(c, 3);
                     addReplyBulkCString(c, node->slaves[i]->ip);
                     addReplyLongLong(c, node->slaves[i]->port);
                     addReplyBulkCBuffer(c, node->slaves[i]->name, CLUSTER_NAMELEN);
                     nested_elements++;
                 }
-                setDeferredArrayLen(c, nested_replylen, nested_elements);
+                setDeferredMultiBulkLength(c, nested_replylen, nested_elements);
                 num_masters++;
             }
         }
     }
     dictReleaseIterator(di);
-    setDeferredArrayLen(c, slot_replylen, num_masters);
+    setDeferredMultiBulkLength(c, slot_replylen, num_masters);
 }
 
 void clusterCommand(client *c) {
@@ -4548,7 +4549,7 @@ NULL
 
         keys = zmalloc(sizeof(robj*)*maxkeys);
         numkeys = getKeysInSlot(slot, keys, maxkeys);
-        addReplyArrayLen(c,numkeys);
+        addReplyMultiBulkLen(c,numkeys);
         for (j = 0; j < numkeys; j++) {
             addReplyBulk(c,keys[j]);
             decrRefCount(keys[j]);
@@ -4627,7 +4628,7 @@ NULL
             return;
         }
 
-        addReplyArrayLen(c,n->numslaves);
+        addReplyMultiBulkLen(c,n->numslaves);
         for (j = 0; j < n->numslaves; j++) {
             sds ni = clusterGenNodeDescription(n->slaves[j]);
             addReplyBulkCString(c,ni);
@@ -4836,7 +4837,7 @@ void dumpCommand(client *c) {
 
     /* Check if the key is here. */
     if ((o = lookupKeyRead(c->db,c->argv[1])) == NULL) {
-        addReplyNull(c);
+        addReply(c,shared.nullbulk);
         return;
     }
 

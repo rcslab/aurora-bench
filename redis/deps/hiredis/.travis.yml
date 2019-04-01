@@ -8,12 +8,6 @@ os:
   - linux
   - osx
 
-branches:
-  only:
-    - staging
-    - trying
-    - master
-
 before_script:
     - if [ "$TRAVIS_OS_NAME" == "osx" ] ; then brew update; brew install redis; fi
 
