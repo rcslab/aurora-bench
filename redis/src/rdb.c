@@ -1290,6 +1290,7 @@ int rdbSaveBackground(char *filename, rdbSaveInfo *rsi) {
     openChildInfoPipe();
 
     start = ustime();
+    serverLog(LL_NOTICE, "@@@ Fork Start");
     if ((childpid = fork()) == 0) {
         int retval;
 
@@ -1297,6 +1298,7 @@ int rdbSaveBackground(char *filename, rdbSaveInfo *rsi) {
         closeListeningSockets(0);
         redisSetProcTitle("redis-rdb-bgsave");
         retval = rdbSave(filename,rsi);
+        serverLog(LL_NOTICE, "@@@ Save time %dus\n", ustime()-start);
         if (retval == C_OK) {
             size_t private_dirty = zmalloc_get_private_dirty(-1);
 
@@ -1314,6 +1316,7 @@ int rdbSaveBackground(char *filename, rdbSaveInfo *rsi) {
         /* Parent */
         server.stat_fork_time = ustime()-start;
         server.stat_fork_rate = (double) zmalloc_used_memory() * 1000000 / server.stat_fork_time / (1024*1024*1024); /* GB per second. */
+        serverLog(LL_NOTICE, "@@@ %dus %lfGB/s", server.stat_fork_time, server.stat_fork_rate);
         latencyAddSampleIfNeeded("fork",server.stat_fork_time/1000);
         if (childpid == -1) {
             closeChildInfoPipe();
