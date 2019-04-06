@@ -1,0 +1,340 @@
+PING_INLINE: 0.00PING_INLINE: 37828.69PING_INLINE: 37814.37PING_INLINE: 37151.80PING_INLINE: 37367.63PING_INLINE: 37507.59PING_INLINE: 37047.30PING_INLINE: 37246.14PING_INLINE: 37361.32PING_INLINE: 37313.64PING_INLINE: 37352.66====== PING_INLINE ======
+  100000 requests completed in 2.67 seconds
+  50 parallel clients
+  3 bytes payload
+  keep alive: 1
+
+0.00% <= 0.3 milliseconds
+0.01% <= 0.4 milliseconds
+0.09% <= 0.5 milliseconds
+4.91% <= 0.6 milliseconds
+42.99% <= 0.7 milliseconds
+87.45% <= 0.8 milliseconds
+98.80% <= 0.9 milliseconds
+99.69% <= 1.0 milliseconds
+99.75% <= 1.1 milliseconds
+99.76% <= 1.2 milliseconds
+99.77% <= 1.3 milliseconds
+99.78% <= 1.4 milliseconds
+99.79% <= 1.5 milliseconds
+99.79% <= 1.6 milliseconds
+99.80% <= 1.7 milliseconds
+99.81% <= 1.8 milliseconds
+99.82% <= 1.9 milliseconds
+99.83% <= 2.0 milliseconds
+99.83% <= 2 milliseconds
+99.85% <= 8 milliseconds
+99.87% <= 9 milliseconds
+99.90% <= 14 milliseconds
+99.94% <= 15 milliseconds
+99.95% <= 21 milliseconds
+99.98% <= 22 milliseconds
+100.00% <= 22 milliseconds
+37383.18 requests per second
+
+PING_BULK: 37840.58PING_BULK: 37874.61PING_BULK: 36462.21PING_BULK: 36242.98PING_BULK: 36683.82PING_BULK: 36649.73PING_BULK: 36919.70PING_BULK: 37073.12PING_BULK: 37086.52PING_BULK: 37167.31PING_BULK: 37262.36====== PING_BULK ======
+  100000 requests completed in 2.68 seconds
+  50 parallel clients
+  3 bytes payload
+  keep alive: 1
+
+99.17% <= 1 milliseconds
+99.55% <= 2 milliseconds
+99.73% <= 3 milliseconds
+99.79% <= 4 milliseconds
+99.87% <= 5 milliseconds
+99.90% <= 6 milliseconds
+99.90% <= 11 milliseconds
+99.94% <= 12 milliseconds
+99.95% <= 21 milliseconds
+99.95% <= 22 milliseconds
+100.00% <= 22 milliseconds
+37313.43 requests per second
+
+SET: 31227.27SET: 35636.12SET: 36430.38SET: 36786.85SET: 36357.77SET: 36679.45SET: 36880.52SET: 36798.09SET: 36924.48SET: 37030.65SET: 36795.59====== SET ======
+  100000 requests completed in 2.71 seconds
+  50 parallel clients
+  3 bytes payload
+  keep alive: 1
+
+99.58% <= 1 milliseconds
+99.77% <= 2 milliseconds
+99.80% <= 12 milliseconds
+99.81% <= 13 milliseconds
+99.85% <= 21 milliseconds
+99.96% <= 22 milliseconds
+100.00% <= 22 milliseconds
+36845.98 requests per second
+
+GET: 38031.45GET: 37295.84GET: 37306.53GET: 37445.55GET: 37573.77GET: 36513.13GET: 35781.19GET: 35242.54GET: 34803.15GET: 34199.67GET: 33942.46GET: 33751.12====== GET ======
+  100000 requests completed in 2.97 seconds
+  50 parallel clients
+  3 bytes payload
+  keep alive: 1
+
+96.12% <= 1 milliseconds
+99.65% <= 2 milliseconds
+99.76% <= 3 milliseconds
+99.85% <= 4 milliseconds
+99.89% <= 5 milliseconds
+99.90% <= 21 milliseconds
+99.93% <= 22 milliseconds
+100.00% <= 22 milliseconds
+33681.38 requests per second
+
+INCR: 37972.68INCR: 38064.66INCR: 38150.80INCR: 37364.41INCR: 37572.27INCR: 37667.83INCR: 37471.78INCR: 37601.14INCR: 37701.33INCR: 37024.25INCR: 36539.32====== INCR ======
+  100000 requests completed in 2.74 seconds
+  50 parallel clients
+  3 bytes payload
+  keep alive: 1
+
+98.60% <= 1 milliseconds
+99.69% <= 2 milliseconds
+99.79% <= 3 milliseconds
+99.84% <= 4 milliseconds
+99.85% <= 5 milliseconds
+99.85% <= 12 milliseconds
+99.91% <= 13 milliseconds
+99.95% <= 17 milliseconds
+99.97% <= 18 milliseconds
+100.00% <= 18 milliseconds
+36443.15 requests per second
+
+LPUSH: 31558.66LPUSH: 31434.88LPUSH: 32757.35LPUSH: 34258.06LPUSH: 35109.32LPUSH: 35600.70LPUSH: 36005.95LPUSH: 36307.25LPUSH: 36388.07LPUSH: 36573.66LPUSH: 36745.89====== LPUSH ======
+  100000 requests completed in 2.72 seconds
+  50 parallel clients
+  3 bytes payload
+  keep alive: 1
+
+98.50% <= 1 milliseconds
+99.76% <= 2 milliseconds
+99.86% <= 3 milliseconds
+99.90% <= 7 milliseconds
+99.91% <= 8 milliseconds
+99.95% <= 21 milliseconds
+99.96% <= 22 milliseconds
+100.00% <= 22 milliseconds
+36764.71 requests per second
+
+RPUSH: 37089.11RPUSH: 37619.47RPUSH: 37784.90RPUSH: 37161.77RPUSH: 37374.38RPUSH: 37530.30RPUSH: 37387.78RPUSH: 37306.86RPUSH: 37388.74RPUSH: 37471.86====== RPUSH ======
+  100000 requests completed in 2.68 seconds
+  50 parallel clients
+  3 bytes payload
+  keep alive: 1
+
+99.21% <= 1 milliseconds
+99.56% <= 2 milliseconds
+99.75% <= 3 milliseconds
+99.81% <= 4 milliseconds
+99.85% <= 5 milliseconds
+99.85% <= 6 milliseconds
+99.85% <= 9 milliseconds
+99.86% <= 10 milliseconds
+99.90% <= 17 milliseconds
+99.93% <= 18 milliseconds
+99.96% <= 19 milliseconds
+100.00% <= 19 milliseconds
+37271.71 requests per second
+
+LPOP: 33166.67LPOP: 37282.45LPOP: 37583.98LPOP: 37188.98LPOP: 37417.98LPOP: 37525.36LPOP: 37353.18LPOP: 37482.41LPOP: 37578.03LPOP: 37281.61LPOP: 37377.39====== LPOP ======
+  100000 requests completed in 2.67 seconds
+  50 parallel clients
+  3 bytes payload
+  keep alive: 1
+
+99.57% <= 1 milliseconds
+99.77% <= 2 milliseconds
+99.85% <= 7 milliseconds
+99.86% <= 8 milliseconds
+99.93% <= 9 milliseconds
+99.95% <= 22 milliseconds
+100.00% <= 22 milliseconds
+37439.16 requests per second
+
+RPOP: 38059.52RPOP: 38368.27RPOP: 37640.41RPOP: 37808.15RPOP: 37924.36RPOP: 37692.65RPOP: 37586.49RPOP: 37676.66RPOP: 37369.48RPOP: 37440.87RPOP: 37480.26====== RPOP ======
+  100000 requests completed in 2.67 seconds
+  50 parallel clients
+  3 bytes payload
+  keep alive: 1
+
+99.39% <= 1 milliseconds
+99.65% <= 2 milliseconds
+99.80% <= 3 milliseconds
+99.83% <= 4 milliseconds
+99.85% <= 5 milliseconds
+99.85% <= 9 milliseconds
+99.90% <= 10 milliseconds
+99.95% <= 19 milliseconds
+99.96% <= 20 milliseconds
+100.00% <= 20 milliseconds
+37509.38 requests per second
+
+SADD: 35427.68SADD: 37112.47SADD: 37484.07SADD: 37244.23SADD: 37438.31SADD: 37552.16SADD: 37642.55SADD: 37473.02SADD: 37559.98SADD: 37613.54SADD: 37484.02====== SADD ======
+  100000 requests completed in 2.67 seconds
+  50 parallel clients
+  3 bytes payload
+  keep alive: 1
+
+99.51% <= 1 milliseconds
+99.75% <= 2 milliseconds
+99.80% <= 9 milliseconds
+99.82% <= 10 milliseconds
+99.93% <= 11 milliseconds
+99.95% <= 12 milliseconds
+99.97% <= 13 milliseconds
+100.00% <= 13 milliseconds
+37481.26 requests per second
+
+HSET: 38269.23HSET: 38351.24HSET: 37720.71HSET: 37913.62HSET: 37722.85HSET: 37421.83HSET: 37554.21HSET: 37662.80HSET: 37203.67HSET: 36603.06====== HSET ======
+  100000 requests completed in 2.73 seconds
+  50 parallel clients
+  3 bytes payload
+  keep alive: 1
+
+98.39% <= 1 milliseconds
+99.62% <= 2 milliseconds
+99.76% <= 3 milliseconds
+99.84% <= 4 milliseconds
+99.85% <= 11 milliseconds
+99.92% <= 12 milliseconds
+99.95% <= 14 milliseconds
+99.98% <= 15 milliseconds
+100.00% <= 15 milliseconds
+36683.79 requests per second
+
+SPOP: 0.00SPOP: 37788.85SPOP: 38059.88SPOP: 38161.12SPOP: 38089.91SPOP: 37636.29SPOP: 37648.23SPOP: 37647.06SPOP: 37267.37SPOP: 37324.75SPOP: 37371.45====== SPOP ======
+  100000 requests completed in 2.68 seconds
+  50 parallel clients
+  3 bytes payload
+  keep alive: 1
+
+99.55% <= 1 milliseconds
+99.73% <= 2 milliseconds
+99.80% <= 5 milliseconds
+99.81% <= 6 milliseconds
+99.85% <= 11 milliseconds
+99.88% <= 12 milliseconds
+99.93% <= 13 milliseconds
+99.95% <= 21 milliseconds
+99.99% <= 22 milliseconds
+100.00% <= 22 milliseconds
+37243.95 requests per second
+
+LPUSH (needed to benchmark LRANGE): 37689.66LPUSH (needed to benchmark LRANGE): 38233.77LPUSH (needed to benchmark LRANGE): 38333.33LPUSH (needed to benchmark LRANGE): 36839.11LPUSH (needed to benchmark LRANGE): 37155.01LPUSH (needed to benchmark LRANGE): 37388.38LPUSH (needed to benchmark LRANGE): 37400.52LPUSH (needed to benchmark LRANGE): 37039.27LPUSH (needed to benchmark LRANGE): 36415.94LPUSH (needed to benchmark LRANGE): 35892.11LPUSH (needed to benchmark LRANGE): 35292.02LPUSH (needed to benchmark LRANGE): 34957.62====== LPUSH (needed to benchmark LRANGE) ======
+  100000 requests completed in 2.87 seconds
+  50 parallel clients
+  3 bytes payload
+  keep alive: 1
+
+96.67% <= 1 milliseconds
+99.64% <= 2 milliseconds
+99.80% <= 3 milliseconds
+99.85% <= 6 milliseconds
+99.90% <= 12 milliseconds
+99.95% <= 13 milliseconds
+99.95% <= 21 milliseconds
+99.99% <= 22 milliseconds
+100.00% <= 22 milliseconds
+34891.84 requests per second
+
+LRANGE_100 (first 100 elements): 23846.99LRANGE_100 (first 100 elements): 24563.51LRANGE_100 (first 100 elements): 26901.90LRANGE_100 (first 100 elements): 27980.71LRANGE_100 (first 100 elements): 28450.55LRANGE_100 (first 100 elements): 28887.65LRANGE_100 (first 100 elements): 29205.59LRANGE_100 (first 100 elements): 29261.77LRANGE_100 (first 100 elements): 29460.38LRANGE_100 (first 100 elements): 29602.96LRANGE_100 (first 100 elements): 29666.04LRANGE_100 (first 100 elements): 29662.12LRANGE_100 (first 100 elements): 29773.17====== LRANGE_100 (first 100 elements) ======
+  100000 requests completed in 3.35 seconds
+  50 parallel clients
+  3 bytes payload
+  keep alive: 1
+
+88.69% <= 1 milliseconds
+99.57% <= 2 milliseconds
+99.69% <= 3 milliseconds
+99.75% <= 4 milliseconds
+99.84% <= 5 milliseconds
+99.87% <= 6 milliseconds
+99.88% <= 7 milliseconds
+99.89% <= 8 milliseconds
+99.90% <= 9 milliseconds
+99.92% <= 10 milliseconds
+99.95% <= 22 milliseconds
+99.97% <= 23 milliseconds
+100.00% <= 24 milliseconds
+29832.94 requests per second
+
+LRANGE_300 (first 300 elements): 18301.37LRANGE_300 (first 300 elements): 17226.01LRANGE_300 (first 300 elements): 17757.84LRANGE_300 (first 300 elements): 17991.52LRANGE_300 (first 300 elements): 17958.14LRANGE_300 (first 300 elements): 18048.27LRANGE_300 (first 300 elements): 18121.83LRANGE_300 (first 300 elements): 18146.77LRANGE_300 (first 300 elements): 18222.54LRANGE_300 (first 300 elements): 18283.75LRANGE_300 (first 300 elements): 18187.82LRANGE_300 (first 300 elements): 18230.63LRANGE_300 (first 300 elements): 18267.14LRANGE_300 (first 300 elements): 18224.76LRANGE_300 (first 300 elements): 18249.30LRANGE_300 (first 300 elements): 18266.20LRANGE_300 (first 300 elements): 18283.82LRANGE_300 (first 300 elements): 18209.47LRANGE_300 (first 300 elements): 18205.68LRANGE_300 (first 300 elements): 18221.53LRANGE_300 (first 300 elements): 18163.75LRANGE_300 (first 300 elements): 18185.71====== LRANGE_300 (first 300 elements) ======
+  100000 requests completed in 5.51 seconds
+  50 parallel clients
+  3 bytes payload
+  keep alive: 1
+
+0.03% <= 1 milliseconds
+99.23% <= 2 milliseconds
+99.54% <= 3 milliseconds
+99.59% <= 4 milliseconds
+99.63% <= 5 milliseconds
+99.67% <= 6 milliseconds
+99.69% <= 7 milliseconds
+99.70% <= 8 milliseconds
+99.70% <= 11 milliseconds
+99.72% <= 12 milliseconds
+99.76% <= 13 milliseconds
+99.79% <= 14 milliseconds
+99.80% <= 19 milliseconds
+99.82% <= 20 milliseconds
+99.84% <= 21 milliseconds
+99.86% <= 22 milliseconds
+99.91% <= 23 milliseconds
+99.96% <= 24 milliseconds
+99.99% <= 25 milliseconds
+100.00% <= 25 milliseconds
+18148.82 requests per second
+
+LRANGE_500 (first 450 elements): 14125.00LRANGE_500 (first 450 elements): 14015.92LRANGE_500 (first 450 elements): 14212.39LRANGE_500 (first 450 elements): 14289.22LRANGE_500 (first 450 elements): 14201.69LRANGE_500 (first 450 elements): 14263.68LRANGE_500 (first 450 elements): 14277.14LRANGE_500 (first 450 elements): 14261.56LRANGE_500 (first 450 elements): 14306.39LRANGE_500 (first 450 elements): 14325.42LRANGE_500 (first 450 elements): 14338.40LRANGE_500 (first 450 elements): 14303.05LRANGE_500 (first 450 elements): 14319.75LRANGE_500 (first 450 elements): 14332.43LRANGE_500 (first 450 elements): 14326.51LRANGE_500 (first 450 elements): 14327.92LRANGE_500 (first 450 elements): 14311.46LRANGE_500 (first 450 elements): 14322.53LRANGE_500 (first 450 elements): 14331.29LRANGE_500 (first 450 elements): 14334.16LRANGE_500 (first 450 elements): 14330.51LRANGE_500 (first 450 elements): 14332.77LRANGE_500 (first 450 elements): 14335.73LRANGE_500 (first 450 elements): 14338.77LRANGE_500 (first 450 elements): 14347.88LRANGE_500 (first 450 elements): 14353.99LRANGE_500 (first 450 elements): 14360.30LRANGE_500 (first 450 elements): 14362.05====== LRANGE_500 (first 450 elements) ======
+  100000 requests completed in 6.96 seconds
+  50 parallel clients
+  3 bytes payload
+  keep alive: 1
+
+0.02% <= 1 milliseconds
+98.83% <= 2 milliseconds
+99.63% <= 3 milliseconds
+99.67% <= 4 milliseconds
+99.71% <= 5 milliseconds
+99.73% <= 6 milliseconds
+99.78% <= 7 milliseconds
+99.81% <= 8 milliseconds
+99.84% <= 9 milliseconds
+99.85% <= 10 milliseconds
+99.85% <= 11 milliseconds
+99.89% <= 12 milliseconds
+99.93% <= 13 milliseconds
+99.96% <= 14 milliseconds
+99.99% <= 15 milliseconds
+100.00% <= 15 milliseconds
+14361.63 requests per second
+
+LRANGE_600 (first 600 elements): 12500.00LRANGE_600 (first 600 elements): 12429.78LRANGE_600 (first 600 elements): 12507.41LRANGE_600 (first 600 elements): 12543.12LRANGE_600 (first 600 elements): 12564.47LRANGE_600 (first 600 elements): 12593.08LRANGE_600 (first 600 elements): 12610.32LRANGE_600 (first 600 elements): 12630.45LRANGE_600 (first 600 elements): 12602.18LRANGE_600 (first 600 elements): 12617.37LRANGE_600 (first 600 elements): 12625.43LRANGE_600 (first 600 elements): 12637.54LRANGE_600 (first 600 elements): 12644.92LRANGE_600 (first 600 elements): 12655.77LRANGE_600 (first 600 elements): 12657.44LRANGE_600 (first 600 elements): 12661.06LRANGE_600 (first 600 elements): 12662.70LRANGE_600 (first 600 elements): 12668.27LRANGE_600 (first 600 elements): 12672.66LRANGE_600 (first 600 elements): 12673.45LRANGE_600 (first 600 elements): 12678.85LRANGE_600 (first 600 elements): 12681.95LRANGE_600 (first 600 elements): 12685.12LRANGE_600 (first 600 elements): 12686.95LRANGE_600 (first 600 elements): 12691.40LRANGE_600 (first 600 elements): 12691.11LRANGE_600 (first 600 elements): 12544.79LRANGE_600 (first 600 elements): 12401.19LRANGE_600 (first 600 elements): 12329.07LRANGE_600 (first 600 elements): 12343.42LRANGE_600 (first 600 elements): 12355.46LRANGE_600 (first 600 elements): 12366.27====== LRANGE_600 (first 600 elements) ======
+  100000 requests completed in 8.08 seconds
+  50 parallel clients
+  3 bytes payload
+  keep alive: 1
+
+0.00% <= 1 milliseconds
+60.81% <= 2 milliseconds
+99.00% <= 3 milliseconds
+99.89% <= 4 milliseconds
+99.91% <= 5 milliseconds
+99.93% <= 6 milliseconds
+99.98% <= 7 milliseconds
+99.99% <= 8 milliseconds
+100.00% <= 8 milliseconds
+12376.24 requests per second
+
+MSET (10 keys): 36111.11MSET (10 keys): 37265.73MSET (10 keys): 37291.04MSET (10 keys): 37472.01MSET (10 keys): 37527.99MSET (10 keys): 37566.10MSET (10 keys): 37608.72MSET (10 keys): 37612.54MSET (10 keys): 37625.25MSET (10 keys): 37625.55MSET (10 keys): 37626.97====== MSET (10 keys) ======
+  100000 requests completed in 2.66 seconds
+  50 parallel clients
+  3 bytes payload
+  keep alive: 1
+
+99.82% <= 1 milliseconds
+100.00% <= 1 milliseconds
+37636.43 requests per second
+
+
