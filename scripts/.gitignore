@@ -1,0 +1,5 @@
+exp*/
+.*.swp
+appendonly.aof
+dump.rdb
+slsdump.x
