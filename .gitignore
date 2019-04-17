@@ -1,0 +1,5 @@
+firefox/venv
+*.log
+*.so
+*.so.21
+*.cache

@@ -1,0 +1,6 @@
+mysql-connector-python==8.0.15
+protobuf==3.7.1
+selenium==3.141.0
+six==1.12.0
+sqlite3==0.0.0
+urllib3==1.24.1
