@@ -25,21 +25,23 @@ if __name__ == "__main__":
     # profile.accept_untrusted_certs = True
     driver = Firefox(firefox_binary='/usr/local/bin/firefox', options=options, 
             firefox_profile=profile)
-    wait = WebDriverWait(driver, timeout=120)
+    wait = WebDriverWait(driver, timeout=120000)
+    print("Driver started")
     driver.get('http://localhost:8000/kraken-1.1/driver.html')
-    pids = list(map(int, check_output(["pgrep", "firefox"]).split("\n")))
+    pids = list(map(int, (check_output(["pgrep", "firefox"]).decode("utf-8").split("\n")[0:-1])))
+    print(pids)
 
-    for pid in pids:
-        print("Starting checkpoint for {}".format(pid))
-        check_output(["./slsctl", "ckptstart", "-p", str(pid), "-t", "1000", "-f", str(pid) + ".sls"])
-        print("Started checkpoint for {}".format(pid))
+    # for pid in pids:
+        # print("Starting checkpoint for {}".format(pid))
+        # check_output(["./slsctl", "checkpoint", "-p", str(pid), "-f", str(pid) + ".sls"])
+        # print("Started checkpoint for {}".format(pid))
 
     wait.until(lambda driver : "results" in driver.current_url)
 
-    for pid in pids:
-        print("Stopping checkpoint for {}".format(pid))
-        check_output(["./slsctl", "ckptstop", "-p", str(pid)])
-        print("Stopped checkpoint for {}".format(pid))
+    # for pid in pids:
+        # print("Stopping checkpoint for {}".format(pid))
+        # check_output(["./slsctl", "ckptstop", "-p", str(pid)])
+        # print("Stopped checkpoint for {}".format(pid))
 
     # elapsed = time.time() - start
     values = urllib.parse.unquote(driver.current_url.split('?')[1]) 
