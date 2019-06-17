@@ -1,6 +1,6 @@
 #!/usr/local/bin/bash
 
-BIN=$1
+BIN=$1/bin
 SLS_DIR=$2
 FREQ=$3
 
@@ -21,9 +21,9 @@ then
 	echo "Running with SLS - Freq set at $FREQ"
 fi
 
-export LD_PRELOAD=./libmysqlclient.so.21
+export LD_PRELOAD=$1/lib/libmysqlclient.so.21
 
-SYSBENCH=./sysb
+SYSBENCH=/usr/local/bin/sysbench
 cp $SLS_DIR/tools/slsctl/slsctl .
 SLS=./slsctl
 
@@ -56,14 +56,14 @@ $SQLD --user=ryan --bind-address=127.0.0.1 \
 
 
 sleep 8
-# This removes space
+# This removes space 
 PID=`pidof mysqld | xargs`
 echo $PID
 
 echo "Creating password - db1234 for database"
 python3 setup.py pre
 
-$SYSBENCH --test=oltp --mysql-table-engine=memory --oltp-table-size=10000 --mysql-user=root --mysql-password=db1234 --mysql-port=33060 prepare
+$SYSBENCH --mysql-user=root --mysql-password=db1234 --mysql-socket=/tmp/mysqlroot.sock oltp_read_write --mysql-storage-engine=memory prepare
 if ! [[ -z "$FREQ" ]]
 then
 	echo "Checkpointing started of $PID"
@@ -76,7 +76,8 @@ then
 	fi
 fi
 
-$SYSBENCH --num-threads=8 --max-requests=3000 --test=oltp --oltp-table-size=10000 --mysql-user=root --mysql-password=db1234 --mysql-port=33060 run 
+#$(truss -D -H -o ./truss.log -p $PID) &
+$SYSBENCH --threads=8 --mysql-user=root --mysql-password=db1234 --mysql-socket=/tmp/mysqlroot.sock oltp_read_write run 
 
 if ! [[ -z "$FREQ" ]]
 then

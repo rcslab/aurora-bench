@@ -3,7 +3,7 @@ import sys
 from mysql.connector import MySQLConnection
 
 def pre():
-    cnx = MySQLConnection(user='root', password='')
+    cnx = MySQLConnection(host="localhost", user='root', password='')
     cur = cnx.cursor(buffered=True)
     new_pass = (
             "ALTER USER 'root'@'localhost' IDENTIFIED BY 'db1234'"
@@ -19,16 +19,12 @@ def pre():
     cnx.close()
 
 def startup():
-    cnx = MySQLConnection(user='root', password='db1234')
+    cnx = MySQLConnection(host="localhost", user='root', password='db1234')
     cur = cnx.cursor(buffered=True)
     create_d = (
             "CREATE DATABASE test;"
             )
     cur.execute(create_d)
-    cur.close()
-    cnx.close()
-
-    cnx = MySQLConnection(user='root', password='db1234', database='test')
 
     startup = (
             "CREATE TABLE test"
@@ -48,7 +44,7 @@ def startup():
     cnx.close()
 
 def check():
-    cnx = MySQLConnection(user='root', password='db1234', database='test')
+    cnx = MySQLConnection(host="localhost", user='root', password='db1234', database='test')
     cur = cnx.cursor(buffered=True)
 
     c = (
@@ -73,7 +69,7 @@ def check():
     
 
 def cleanup():
-    cnx = MySQLConnection(user='root', password='db1234', database='test')
+    cnx = MySQLConnection(host="localhost", user='root', password='db1234', database='test')
 
     teardown = (
             "DROP DATABASE test"
