@@ -4,3 +4,5 @@ firefox/venv
 *.so.21
 *.cache
 venv
+*.out
+slsctl
