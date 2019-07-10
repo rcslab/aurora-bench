@@ -6,3 +6,7 @@ firefox/venv
 venv
 *.out
 slsctl
+*.o
+.sconsign.dblite
+*_bench
+!*_bench.cc
