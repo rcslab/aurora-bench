@@ -14,6 +14,8 @@ rm trace.log > /dev/null 2>&1
 
 kldload $SLS_DIR/kmod/sls.ko > /dev/null 2>&1
 
+echo "$COMMAND $@"
+
 cpuset -l 0-23 ./$COMMAND $@  &
 
 cp $SLS_DIR/tools/slsctl/slsctl .

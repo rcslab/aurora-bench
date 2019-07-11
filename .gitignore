@@ -10,3 +10,7 @@ slsctl
 .sconsign.dblite
 *_bench
 !*_bench.cc
+.nfs*
+data
+__pycache__
+*.core

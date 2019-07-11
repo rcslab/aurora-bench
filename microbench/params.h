@@ -27,12 +27,17 @@
 #define TIME_DIFF(past) \
     std::chrono::duration_cast<std::chrono::seconds>(TIME() - past).count()
 
+#define WAIT(seconds) \
+    auto s = TIME(); \
+    do {} while(TIME_DIFF(s) < seconds); \
+
 struct Params {
     size_t memSize;
     size_t threads;
     size_t dirty;
     size_t numObj;
     size_t runFor;
+    size_t numFiles;
 };
 
 Params
@@ -43,7 +48,7 @@ getParams(int argc, char *argv[])
 	std::stringstream ss;
 	ss << "Running micro benchmark with the following args" << std::endl;
 	ss << "================================================" << std::endl;
-	while((opt = getopt(argc, argv,"m:t:d:o:s:")) != -1) {
+	while((opt = getopt(argc, argv,"m:t:d:o:s:f:")) != -1) {
 	    switch(opt)
 	    {
 		case 'm':
@@ -61,13 +66,17 @@ getParams(int argc, char *argv[])
 		case 's':
 		    para.runFor = std::atoi(optarg);
 		    break;
+		case 'f':
+		    para.numFiles = std::atoi(optarg);
+		    break;
+
 	    };
 	}
-	ss << "Memory Size = " << para.memSize << "kb" << std::endl;
+	ss << "Memory Size = " << para.memSize << " bytes" << std::endl;
 	ss << "Threads = " << para.threads << std::endl;
 	ss << "Dirty = " << para.dirty << std::endl;
 	ss << "Num objects = " << para.numObj <<std::endl;
-	ss << "Running for = "<< para.runFor << "s" << std::endl;
+	ss << "Running for = "<< para.runFor << " seconds" << std::endl;
 	ss << "================================================" << std::endl;
 	LOG(ss.str());
 

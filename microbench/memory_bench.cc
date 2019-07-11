@@ -1,15 +1,14 @@
+#include <sys/mman.h>
 
 #include "params.h"
 
 int main(int argc, char *argv[])
 {
 	auto args = getParams(argc, argv);
-	std::vector<std::thread> threads(args.threads);
 	auto start = TIME();
-	while (TIME_DIFF(start) >= args.runFor)
-	{
-	    auto inner = TIME();
-	    while(TIME_DIFF(inner) < 1) {}
-	}
+        void * buf = mmap(nullptr, args.memSize, PROT_READ | PROT_WRITE,
+		    MAP_ALIGNED_SUPER | MAP_ANON, -1, 0);
+	auto inner = TIME();
+	WAIT(args.runFor)
 	return 0;
 }
