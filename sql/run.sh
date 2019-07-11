@@ -63,7 +63,7 @@ echo $PID
 echo "Creating password - db1234 for database"
 python3 setup.py pre
 
-$SYSBENCH --mysql-user=root --mysql-password=db1234 --mysql-socket=/tmp/mysqlroot.sock oltp_read_write --mysql-storage-engine=memory prepare
+$SYSBENCH --mysql-user=root --mysql-password=db1234 --mysql-socket=/tmp/mysql.sock oltp_read_write --mysql-storage-engine=memory prepare
 if ! [[ -z "$FREQ" ]]
 then
 	echo "Checkpointing started of $PID"
@@ -77,7 +77,7 @@ then
 fi
 
 #$(truss -D -H -o ./truss.log -p $PID) &
-$SYSBENCH --threads=8 --mysql-user=root --mysql-password=db1234 --mysql-socket=/tmp/mysqlroot.sock oltp_read_write run 
+$SYSBENCH --threads=8 --mysql-user=root --mysql-password=db1234 --mysql-socket=/tmp/mysql.sock oltp_read_write run 
 
 if ! [[ -z "$FREQ" ]]
 then

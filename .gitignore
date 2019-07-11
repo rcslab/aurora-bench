@@ -4,3 +4,9 @@ firefox/venv
 *.so.21
 *.cache
 venv
+*.out
+slsctl
+*.o
+.sconsign.dblite
+*_bench
+!*_bench.cc
