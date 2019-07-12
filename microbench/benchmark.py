@@ -1,4 +1,5 @@
 from bench import *
+from graph import *
 
 @Benchmarker
 def memory(args):
@@ -14,7 +15,6 @@ def memory(args):
     params["-t"] = 1
     for t in range(step, memory, step):
         params["-m"] = t
-        print(("=" * 10) + str(step) + ("=" * 10))
         run_benchmark("memory_bench", args, params)
 
 @Benchmarker
@@ -51,4 +51,7 @@ def files(args):
         params["-f"] = t
         run_benchmark("file_bench", args, params)
 
-Benchmarker.run()
+#Benchmarker.run()
+Benchmarker.show()
+
+

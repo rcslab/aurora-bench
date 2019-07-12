@@ -8,6 +8,8 @@ import re
 import numpy
 import time
 
+from graph import *
+
 KB = 1024
 MB = 1024 * KB
 GB = 1024 * MB
@@ -102,14 +104,34 @@ class Benchmarker:
 
     @staticmethod
     def run():
+        print("\n")
+        print("Running the following benchmarks:")
+        for x in Benchmarker.bm:
+            print(x.__name__)
+        print("\n")
         args = Benchmarker.get_parser().parse_args()
         print(args)
+        print("\n")
         Benchmarker.run_with_args(args)
+
+    @staticmethod
+    def show():
+        graphs = []
+        for dir in os.listdir("./data"):
+            if os.path.isdir("./data/" + dir):
+                continue
+            (name, ext) = dir.split(".")
+            if ext == "csv":
+                graphs.append(LineGraph("./data/" + dir, name.capitalize(), 
+                    "us", name.capitalize()))
+
+        fig = Figure("Microbenchmarks", *graphs)
+        fig.show()
 
     @staticmethod
     def run_with_args(args):
         for f in Benchmarker.bm:
-           f(args)
+            f(args)
         time.sleep(5)
         aggregate()
 
