@@ -1217,9 +1217,6 @@ werr: /* Write error. */
 
 /* Save the DB on disk. Return C_ERR on error, C_OK on success. */
 int rdbSave(char *filename, rdbSaveInfo *rsi) {
-    
-
-//============================================================================
     char tmpfile[256];
     char cwd[MAXPATHLEN]; /* Current working dir path for error messages. */
     FILE *fp;
@@ -1293,6 +1290,7 @@ int rdbSaveBackground(char *filename, rdbSaveInfo *rsi) {
     openChildInfoPipe();
 
     start = ustime();
+    serverLog(LL_NOTICE, "@@@ Fork Start");
     if ((childpid = fork()) == 0) {
         int retval;
 
@@ -1300,6 +1298,7 @@ int rdbSaveBackground(char *filename, rdbSaveInfo *rsi) {
         closeListeningSockets(0);
         redisSetProcTitle("redis-rdb-bgsave");
         retval = rdbSave(filename,rsi);
+        serverLog(LL_NOTICE, "@@@ Save time %dus\n", ustime()-start);
         if (retval == C_OK) {
             size_t private_dirty = zmalloc_get_private_dirty(-1);
 
@@ -1317,6 +1316,7 @@ int rdbSaveBackground(char *filename, rdbSaveInfo *rsi) {
         /* Parent */
         server.stat_fork_time = ustime()-start;
         server.stat_fork_rate = (double) zmalloc_used_memory() * 1000000 / server.stat_fork_time / (1024*1024*1024); /* GB per second. */
+        serverLog(LL_NOTICE, "@@@ %dus %lfGB/s", server.stat_fork_time, server.stat_fork_rate);
         latencyAddSampleIfNeeded("fork",server.stat_fork_time/1000);
         if (childpid == -1) {
             closeChildInfoPipe();
@@ -2226,16 +2226,6 @@ void backgroundSaveDoneHandler(int exitcode, int bysignal) {
         serverPanic("Unknown RDB child type.");
         break;
     }
-}
-
-/* Kill the RDB saving child using SIGUSR1 (so that the parent will know
- * the child did not exit for an error, but because we wanted), and performs
- * the cleanup needed. */
-void killRDBChild(void) {
-    kill(server.rdb_child_pid,SIGUSR1);
-    rdbRemoveTempFile(server.rdb_child_pid);
-    closeChildInfoPipe();
-    updateDictResizePolicy();
 }
 
 /* Spawn an RDB child that writes the RDB to the sockets of the slaves

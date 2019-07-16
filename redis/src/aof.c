@@ -204,7 +204,7 @@ void aof_background_fsync(int fd) {
 }
 
 /* Kills an AOFRW child process if exists */
-void killAppendOnlyChild(void) {
+static void killAppendOnlyChild(void) {
     int statloc;
     /* No AOFRW child? return. */
     if (server.aof_child_pid == -1) return;
@@ -221,8 +221,6 @@ void killAppendOnlyChild(void) {
     server.aof_rewrite_time_start = -1;
     /* Close pipes used for IPC between the two processes. */
     aofClosePipes();
-    closeChildInfoPipe();
-    updateDictResizePolicy();
 }
 
 /* Called when the user switches from "appendonly yes" to "appendonly no"
@@ -647,8 +645,6 @@ struct client *createFakeClient(void) {
     c->obuf_soft_limit_reached_time = 0;
     c->watched_keys = listCreate();
     c->peerid = NULL;
-    c->resp = 2;
-    c->user = NULL;
     listSetFreeMethod(c->reply,freeClientReplyValue);
     listSetDupMethod(c->reply,dupClientReplyValue);
     initClientMultiState(c);

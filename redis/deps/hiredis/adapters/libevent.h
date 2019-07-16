@@ -73,8 +73,8 @@ static void redisLibeventDelWrite(void *privdata) {
 
 static void redisLibeventCleanup(void *privdata) {
     redisLibeventEvents *e = (redisLibeventEvents*)privdata;
-    event_free(e->rev);
-    event_free(e->wev);
+    event_del(e->rev);
+    event_del(e->wev);
     free(e);
 }
 

@@ -283,9 +283,6 @@ void loadServerConfigFromString(char *config) {
                 }
                 fclose(logfp);
             }
-        } else if (!strcasecmp(argv[0],"aclfile") && argc == 2) {
-            zfree(server.acl_filename);
-            server.acl_filename = zstrdup(argv[1]);
         } else if (!strcasecmp(argv[0],"always-show-logo") && argc == 2) {
             if ((server.always_show_logo = yesnotoi(argv[1])) == -1) {
                 err = "argument must be 'yes' or 'no'"; goto loaderr;
@@ -395,9 +392,6 @@ void loadServerConfigFromString(char *config) {
                 err = "repl-backlog-ttl can't be negative ";
                 goto loaderr;
             }
-        } else if (!strcasecmp(argv[0],"masteruser") && argc == 2) {
-            zfree(server.masteruser);
-            server.masteruser = argv[1][0] ? zstrdup(argv[1]) : NULL;
         } else if (!strcasecmp(argv[0],"masterauth") && argc == 2) {
             zfree(server.masterauth);
             server.masterauth = argv[1][0] ? zstrdup(argv[1]) : NULL;
@@ -537,12 +531,7 @@ void loadServerConfigFromString(char *config) {
                 err = "Password is longer than CONFIG_AUTHPASS_MAX_LEN";
                 goto loaderr;
             }
-            /* The old "requirepass" directive just translates to setting
-             * a password to the default user. */
-            ACLSetUser(DefaultUser,"resetpass",-1);
-            sds aclop = sdscatprintf(sdsempty(),">%s",argv[1]);
-            ACLSetUser(DefaultUser,aclop,sdslen(aclop));
-            sdsfree(aclop);
+            server.requirepass = argv[1][0] ? zstrdup(argv[1]) : NULL;
         } else if (!strcasecmp(argv[0],"pidfile") && argc == 2) {
             zfree(server.pidfile);
             server.pidfile = zstrdup(argv[1]);
@@ -797,16 +786,6 @@ void loadServerConfigFromString(char *config) {
                     "Allowed values: 'upstart', 'systemd', 'auto', or 'no'";
                 goto loaderr;
             }
-        } else if (!strcasecmp(argv[0],"user") && argc >= 2) {
-            int argc_err;
-            if (ACLAppendUserForLoading(argv,argc,&argc_err) == C_ERR) {
-                char buf[1024];
-                char *errmsg = ACLSetUserStringError();
-                snprintf(buf,sizeof(buf),"Error in user declaration '%s': %s",
-                    argv[argc_err],errmsg);
-                err = buf;
-                goto loaderr;
-            }
         } else if (!strcasecmp(argv[0],"loadmodule") && argc >= 2) {
             queueLoadModule(argv[1],&argv[2],argc-2);
         } else if (!strcasecmp(argv[0],"sentinel")) {
@@ -940,15 +919,8 @@ void configSetCommand(client *c) {
         server.rdb_filename = zstrdup(o->ptr);
     } config_set_special_field("requirepass") {
         if (sdslen(o->ptr) > CONFIG_AUTHPASS_MAX_LEN) goto badfmt;
-        /* The old "requirepass" directive just translates to setting
-         * a password to the default user. */
-        ACLSetUser(DefaultUser,"resetpass",-1);
-        sds aclop = sdscatprintf(sdsempty(),">%s",(char*)o->ptr);
-        ACLSetUser(DefaultUser,aclop,sdslen(aclop));
-        sdsfree(aclop);
-    } config_set_special_field("masteruser") {
-        zfree(server.masteruser);
-        server.masteruser = ((char*)o->ptr)[0] ? zstrdup(o->ptr) : NULL;
+        zfree(server.requirepass);
+        server.requirepass = ((char*)o->ptr)[0] ? zstrdup(o->ptr) : NULL;
     } config_set_special_field("masterauth") {
         zfree(server.masterauth);
         server.masterauth = ((char*)o->ptr)[0] ? zstrdup(o->ptr) : NULL;
@@ -1070,8 +1042,8 @@ void configSetCommand(client *c) {
             int soft_seconds;
 
             class = getClientTypeByName(v[j]);
-            hard = strtoll(v[j+1],NULL,10);
-            soft = strtoll(v[j+2],NULL,10);
+            hard = memtoll(v[j+1],NULL);
+            soft = memtoll(v[j+2],NULL);
             soft_seconds = strtoll(v[j+3],NULL,10);
 
             server.client_obuf_limits[class].hard_limit_bytes = hard;
@@ -1352,7 +1324,7 @@ badfmt: /* Bad format errors */
 
 void configGetCommand(client *c) {
     robj *o = c->argv[2];
-    void *replylen = addReplyDeferredLen(c);
+    void *replylen = addDeferredMultiBulkLength(c);
     char *pattern = o->ptr;
     char buf[128];
     int matches = 0;
@@ -1360,12 +1332,11 @@ void configGetCommand(client *c) {
 
     /* String values */
     config_get_string_field("dbfilename",server.rdb_filename);
-    config_get_string_field("masteruser",server.masteruser);
+    config_get_string_field("requirepass",server.requirepass);
     config_get_string_field("masterauth",server.masterauth);
     config_get_string_field("cluster-announce-ip",server.cluster_announce_ip);
     config_get_string_field("unixsocket",server.unixsocket);
     config_get_string_field("logfile",server.logfile);
-    config_get_string_field("aclfile",server.acl_filename);
     config_get_string_field("pidfile",server.pidfile);
     config_get_string_field("slave-announce-ip",server.slave_announce_ip);
     config_get_string_field("replica-announce-ip",server.slave_announce_ip);
@@ -1600,17 +1571,7 @@ void configGetCommand(client *c) {
         sdsfree(aux);
         matches++;
     }
-    if (stringmatch(pattern,"requirepass",1)) {
-        addReplyBulkCString(c,"requirepass");
-        sds password = ACLDefaultUserFirstPassword();
-        if (password) {
-            addReplyBulkCBuffer(c,password,sdslen(password));
-        } else {
-            addReplyBulkCString(c,"");
-        }
-        matches++;
-    }
-    setDeferredMapLen(c,replylen,matches);
+    setDeferredMultiBulkLength(c,replylen,matches*2);
 }
 
 /*-----------------------------------------------------------------------------
@@ -1928,38 +1889,6 @@ void rewriteConfigSaveOption(struct rewriteConfigState *state) {
     rewriteConfigMarkAsProcessed(state,"save");
 }
 
-/* Rewrite the user option. */
-void rewriteConfigUserOption(struct rewriteConfigState *state) {
-    /* If there is a user file defined we just mark this configuration
-     * directive as processed, so that all the lines containing users
-     * inside the config file gets discarded. */
-    if (server.acl_filename[0] != '\0') {
-        rewriteConfigMarkAsProcessed(state,"user");
-        return;
-    }
-
-    /* Otherwise scan the list of users and rewrite every line. Note that
-     * in case the list here is empty, the effect will just be to comment
-     * all the users directive inside the config file. */
-    raxIterator ri;
-    raxStart(&ri,Users);
-    raxSeek(&ri,"^",NULL,0);
-    while(raxNext(&ri)) {
-        user *u = ri.data;
-        sds line = sdsnew("user ");
-        line = sdscatsds(line,u->name);
-        line = sdscatlen(line," ",1);
-        sds descr = ACLDescribeUser(u);
-        line = sdscatsds(line,descr);
-        sdsfree(descr);
-        rewriteConfigRewriteLine(state,"user",line,1);
-    }
-    raxStop(&ri);
-
-    /* Mark "user" as processed in case there are no defined users. */
-    rewriteConfigMarkAsProcessed(state,"user");
-}
-
 /* Rewrite the dir option, always using absolute paths.*/
 void rewriteConfigDirOption(struct rewriteConfigState *state) {
     char cwd[1024];
@@ -2048,26 +1977,6 @@ void rewriteConfigBindOption(struct rewriteConfigState *state) {
     line = sdscatlen(line, " ", 1);
     line = sdscatsds(line, addresses);
     sdsfree(addresses);
-
-    rewriteConfigRewriteLine(state,option,line,force);
-}
-
-/* Rewrite the requirepass option. */
-void rewriteConfigRequirepassOption(struct rewriteConfigState *state, char *option) {
-    int force = 1;
-    sds line;
-    sds password = ACLDefaultUserFirstPassword();
-
-    /* If there is no password set, we don't want the requirepass option
-     * to be present in the configuration at all. */
-    if (password == NULL) {
-        rewriteConfigMarkAsProcessed(state,option);
-        return;
-    }
-
-    line = sdsnew(option);
-    line = sdscatlen(line, " ", 1);
-    line = sdscatsds(line, password);
 
     rewriteConfigRewriteLine(state,option,line,force);
 }
@@ -2225,12 +2134,10 @@ int rewriteConfig(char *path) {
     rewriteConfigNumericalOption(state,"replica-announce-port",server.slave_announce_port,CONFIG_DEFAULT_SLAVE_ANNOUNCE_PORT);
     rewriteConfigEnumOption(state,"loglevel",server.verbosity,loglevel_enum,CONFIG_DEFAULT_VERBOSITY);
     rewriteConfigStringOption(state,"logfile",server.logfile,CONFIG_DEFAULT_LOGFILE);
-    rewriteConfigStringOption(state,"aclfile",server.acl_filename,CONFIG_DEFAULT_ACL_FILENAME);
     rewriteConfigYesNoOption(state,"syslog-enabled",server.syslog_enabled,CONFIG_DEFAULT_SYSLOG_ENABLED);
     rewriteConfigStringOption(state,"syslog-ident",server.syslog_ident,CONFIG_DEFAULT_SYSLOG_IDENT);
     rewriteConfigSyslogfacilityOption(state);
     rewriteConfigSaveOption(state);
-    rewriteConfigUserOption(state);
     rewriteConfigNumericalOption(state,"databases",server.dbnum,CONFIG_DEFAULT_DBNUM);
     rewriteConfigYesNoOption(state,"stop-writes-on-bgsave-error",server.stop_writes_on_bgsave_err,CONFIG_DEFAULT_STOP_WRITES_ON_BGSAVE_ERROR);
     rewriteConfigYesNoOption(state,"rdbcompression",server.rdb_compression,CONFIG_DEFAULT_RDB_COMPRESSION);
@@ -2239,7 +2146,6 @@ int rewriteConfig(char *path) {
     rewriteConfigDirOption(state);
     rewriteConfigSlaveofOption(state,"replicaof");
     rewriteConfigStringOption(state,"replica-announce-ip",server.slave_announce_ip,CONFIG_DEFAULT_SLAVE_ANNOUNCE_IP);
-    rewriteConfigStringOption(state,"masteruser",server.masteruser,NULL);
     rewriteConfigStringOption(state,"masterauth",server.masterauth,NULL);
     rewriteConfigStringOption(state,"cluster-announce-ip",server.cluster_announce_ip,NULL);
     rewriteConfigYesNoOption(state,"replica-serve-stale-data",server.repl_serve_stale_data,CONFIG_DEFAULT_SLAVE_SERVE_STALE_DATA);
@@ -2255,7 +2161,7 @@ int rewriteConfig(char *path) {
     rewriteConfigNumericalOption(state,"replica-priority",server.slave_priority,CONFIG_DEFAULT_SLAVE_PRIORITY);
     rewriteConfigNumericalOption(state,"min-replicas-to-write",server.repl_min_slaves_to_write,CONFIG_DEFAULT_MIN_SLAVES_TO_WRITE);
     rewriteConfigNumericalOption(state,"min-replicas-max-lag",server.repl_min_slaves_max_lag,CONFIG_DEFAULT_MIN_SLAVES_MAX_LAG);
-    rewriteConfigRequirepassOption(state,"requirepass");
+    rewriteConfigStringOption(state,"requirepass",server.requirepass,NULL);
     rewriteConfigNumericalOption(state,"maxclients",server.maxclients,CONFIG_DEFAULT_MAX_CLIENTS);
     rewriteConfigBytesOption(state,"maxmemory",server.maxmemory,CONFIG_DEFAULT_MAXMEMORY);
     rewriteConfigBytesOption(state,"proto-max-bulk-len",server.proto_max_bulk_len,CONFIG_DEFAULT_PROTO_MAX_BULK_LEN);

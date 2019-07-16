@@ -42,7 +42,7 @@ char *redisProtocolToLuaType_Int(lua_State *lua, char *reply);
 char *redisProtocolToLuaType_Bulk(lua_State *lua, char *reply);
 char *redisProtocolToLuaType_Status(lua_State *lua, char *reply);
 char *redisProtocolToLuaType_Error(lua_State *lua, char *reply);
-char *redisProtocolToLuaType_MultiBulk(lua_State *lua, char *reply, int atype);
+char *redisProtocolToLuaType_MultiBulk(lua_State *lua, char *reply);
 int redis_math_random (lua_State *L);
 int redis_math_randomseed (lua_State *L);
 void ldbInit(void);
@@ -132,9 +132,7 @@ char *redisProtocolToLuaType(lua_State *lua, char* reply) {
     case '$': p = redisProtocolToLuaType_Bulk(lua,reply); break;
     case '+': p = redisProtocolToLuaType_Status(lua,reply); break;
     case '-': p = redisProtocolToLuaType_Error(lua,reply); break;
-    case '*': p = redisProtocolToLuaType_MultiBulk(lua,reply,*p); break;
-    case '%': p = redisProtocolToLuaType_MultiBulk(lua,reply,*p); break;
-    case '~': p = redisProtocolToLuaType_MultiBulk(lua,reply,*p); break;
+    case '*': p = redisProtocolToLuaType_MultiBulk(lua,reply); break;
     }
     return p;
 }
@@ -182,38 +180,22 @@ char *redisProtocolToLuaType_Error(lua_State *lua, char *reply) {
     return p+2;
 }
 
-char *redisProtocolToLuaType_MultiBulk(lua_State *lua, char *reply, int atype) {
+char *redisProtocolToLuaType_MultiBulk(lua_State *lua, char *reply) {
     char *p = strchr(reply+1,'\r');
     long long mbulklen;
     int j = 0;
 
     string2ll(reply+1,p-reply-1,&mbulklen);
-    if (server.lua_caller->resp == 2 || atype == '*') {
-        p += 2;
-        if (mbulklen == -1) {
-            lua_pushboolean(lua,0);
-            return p;
-        }
-        lua_newtable(lua);
-        for (j = 0; j < mbulklen; j++) {
-            lua_pushnumber(lua,j+1);
-            p = redisProtocolToLuaType(lua,p);
-            lua_settable(lua,-3);
-        }
-    } else if (server.lua_caller->resp == 3) {
-        /* Here we handle only Set and Map replies in RESP3 mode, since arrays
-         * follow the above RESP2 code path. */
-        p += 2;
-        lua_newtable(lua);
-        for (j = 0; j < mbulklen; j++) {
-            p = redisProtocolToLuaType(lua,p);
-            if (atype == '%') {
-                p = redisProtocolToLuaType(lua,p);
-            } else {
-                lua_pushboolean(lua,1);
-            }
-            lua_settable(lua,-3);
-        }
+    p += 2;
+    if (mbulklen == -1) {
+        lua_pushboolean(lua,0);
+        return p;
+    }
+    lua_newtable(lua);
+    for (j = 0; j < mbulklen; j++) {
+        lua_pushnumber(lua,j+1);
+        p = redisProtocolToLuaType(lua,p);
+        lua_settable(lua,-3);
     }
     return p;
 }
@@ -300,7 +282,7 @@ void luaReplyToRedisReply(client *c, lua_State *lua) {
         addReplyBulkCBuffer(c,(char*)lua_tostring(lua,-1),lua_strlen(lua,-1));
         break;
     case LUA_TBOOLEAN:
-        addReply(c,lua_toboolean(lua,-1) ? shared.cone : shared.null[c->resp]);
+        addReply(c,lua_toboolean(lua,-1) ? shared.cone : shared.nullbulk);
         break;
     case LUA_TNUMBER:
         addReplyLongLong(c,(long long)lua_tonumber(lua,-1));
@@ -333,7 +315,7 @@ void luaReplyToRedisReply(client *c, lua_State *lua) {
             sdsfree(ok);
             lua_pop(lua,1);
         } else {
-            void *replylen = addReplyDeferredLen(c);
+            void *replylen = addDeferredMultiBulkLength(c);
             int j = 1, mbulklen = 0;
 
             lua_pop(lua,1); /* Discard the 'ok' field value we popped */
@@ -348,11 +330,11 @@ void luaReplyToRedisReply(client *c, lua_State *lua) {
                 luaReplyToRedisReply(c, lua);
                 mbulklen++;
             }
-            setDeferredArrayLen(c,replylen,mbulklen);
+            setDeferredMultiBulkLength(c,replylen,mbulklen);
         }
         break;
     default:
-        addReplyNull(c);
+        addReply(c,shared.nullbulk);
     }
     lua_pop(lua,1);
 }
@@ -460,7 +442,6 @@ int luaRedisGenericCommand(lua_State *lua, int raise_error) {
     /* Setup our fake client for command execution */
     c->argv = argv;
     c->argc = argc;
-    c->user = server.lua_caller->user;
 
     /* Log the command if debugging is active. */
     if (ldb.active && ldb.step) {
@@ -495,19 +476,6 @@ int luaRedisGenericCommand(lua_State *lua, int raise_error) {
     /* There are commands that are not allowed inside scripts. */
     if (cmd->flags & CMD_NOSCRIPT) {
         luaPushError(lua, "This Redis command is not allowed from scripts");
-        goto cleanup;
-    }
-
-    /* Check the ACLs. */
-    int acl_retval = ACLCheckCommandPerm(c);
-    if (acl_retval != ACL_OK) {
-        if (acl_retval == ACL_DENIED_CMD)
-            luaPushError(lua, "The user executing the script can't run this "
-                              "command or subcommand");
-        else
-            luaPushError(lua, "The user executing the script can't access "
-                              "at least one of the keys mentioned in the "
-                              "command arguments");
         goto cleanup;
     }
 
@@ -668,8 +636,6 @@ cleanup:
         argv = NULL;
         argv_size = 0;
     }
-
-    c->user = NULL;
 
     if (raise_error) {
         /* If we are here we should have an error in the stack, in the
@@ -1535,7 +1501,7 @@ NULL
     } else if (c->argc >= 2 && !strcasecmp(c->argv[1]->ptr,"exists")) {
         int j;
 
-        addReplyArrayLen(c, c->argc-2);
+        addReplyMultiBulkLen(c, c->argc-2);
         for (j = 2; j < c->argc; j++) {
             if (dictFind(server.lua_scripts,c->argv[j]->ptr))
                 addReply(c,shared.cone);

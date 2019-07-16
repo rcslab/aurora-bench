@@ -68,6 +68,7 @@
 #define REDIS_CLI_RCFILE_ENV "REDISCLI_RCFILE"
 #define REDIS_CLI_RCFILE_DEFAULT ".redisclirc"
 #define REDIS_CLI_AUTH_ENV "REDISCLI_AUTH"
+#define REDIS_CLI_CLUSTER_YES_ENV "REDISCLI_CLUSTER_YES"
 
 #define CLUSTER_MANAGER_SLOTS               16384
 #define CLUSTER_MANAGER_MIGRATE_TIMEOUT     60000
@@ -210,6 +211,8 @@ static struct config {
     char *pattern;
     char *rdb_filename;
     int bigkeys;
+    int memkeys;
+    unsigned memkeys_samples;
     int hotkeys;
     int stdinarg; /* get last arg from stdin. (-x option) */
     char *auth;
@@ -810,9 +813,6 @@ static sds cliFormatReplyTTY(redisReply *r, char *prefix) {
     case REDIS_REPLY_INTEGER:
         out = sdscatprintf(out,"(integer) %lld\n",r->integer);
     break;
-    case REDIS_REPLY_DOUBLE:
-        out = sdscatprintf(out,"(double) %s\n",r->str);
-    break;
     case REDIS_REPLY_STRING:
         /* If you are producing output for the standard output we want
         * a more interesting output with quoted characters and so forth */
@@ -822,21 +822,9 @@ static sds cliFormatReplyTTY(redisReply *r, char *prefix) {
     case REDIS_REPLY_NIL:
         out = sdscat(out,"(nil)\n");
     break;
-    case REDIS_REPLY_BOOL:
-        out = sdscat(out,r->integer ? "(true)\n" : "(false)\n");
-    break;
     case REDIS_REPLY_ARRAY:
-    case REDIS_REPLY_MAP:
-    case REDIS_REPLY_SET:
         if (r->elements == 0) {
-            if (r->type == REDIS_REPLY_ARRAY)
-                out = sdscat(out,"(empty array)\n");
-            else if (r->type == REDIS_REPLY_MAP)
-                out = sdscat(out,"(empty hash)\n");
-            else if (r->type == REDIS_REPLY_SET)
-                out = sdscat(out,"(empty set)\n");
-            else
-                out = sdscat(out,"(empty aggregate type)\n");
+            out = sdscat(out,"(empty list or set)\n");
         } else {
             unsigned int i, idxlen = 0;
             char _prefixlen[16];
@@ -846,7 +834,6 @@ static sds cliFormatReplyTTY(redisReply *r, char *prefix) {
 
             /* Calculate chars needed to represent the largest index */
             i = r->elements;
-            if (r->type == REDIS_REPLY_MAP) i /= 2;
             do {
                 idxlen++;
                 i /= 10;
@@ -858,35 +845,17 @@ static sds cliFormatReplyTTY(redisReply *r, char *prefix) {
             _prefix = sdscat(sdsnew(prefix),_prefixlen);
 
             /* Setup prefix format for every entry */
-            char numsep;
-            if (r->type == REDIS_REPLY_SET) numsep = '~';
-            else if (r->type == REDIS_REPLY_MAP) numsep = '#';
-            else numsep = ')';
-            snprintf(_prefixfmt,sizeof(_prefixfmt),"%%s%%%ud%c ",idxlen,numsep);
+            snprintf(_prefixfmt,sizeof(_prefixfmt),"%%s%%%ud) ",idxlen);
 
             for (i = 0; i < r->elements; i++) {
-                unsigned int human_idx = (r->type == REDIS_REPLY_MAP) ?
-                                         i/2 : i;
-                human_idx++; /* Make it 1-based. */
-
                 /* Don't use the prefix for the first element, as the parent
                  * caller already prepended the index number. */
-                out = sdscatprintf(out,_prefixfmt,i == 0 ? "" : prefix,human_idx);
+                out = sdscatprintf(out,_prefixfmt,i == 0 ? "" : prefix,i+1);
 
                 /* Format the multi bulk entry */
                 tmp = cliFormatReplyTTY(r->element[i],_prefix);
                 out = sdscatlen(out,tmp,sdslen(tmp));
                 sdsfree(tmp);
-
-                /* For maps, format the value as well. */
-                if (r->type == REDIS_REPLY_MAP) {
-                    i++;
-                    sdsrange(out,0,-2);
-                    out = sdscat(out," => ");
-                    tmp = cliFormatReplyTTY(r->element[i],_prefix);
-                    out = sdscatlen(out,tmp,sdslen(tmp));
-                    sdsfree(tmp);
-                }
             }
             sdsfree(_prefix);
         }
@@ -1175,9 +1144,7 @@ static int cliSendCommand(int argc, char **argv, long repeat) {
     for (j = 0; j < argc; j++)
         argvlen[j] = sdslen(argv[j]);
 
-    /* Negative repeat is allowed and causes infinite loop,
-       works well with the interval option. */
-    while(repeat < 0 || repeat-- > 0) {
+    while(repeat-- > 0) {
         redisAppendCommandArgv(context,argc,(const char**)argv,argvlen);
         while (config.monitor_mode) {
             if (cliReadReply(output_raw) != REDIS_OK) exit(1);
@@ -1211,11 +1178,6 @@ static int cliSendCommand(int argc, char **argv, long repeat) {
             } else if (!strcasecmp(command,"auth") && argc == 2) {
                 cliSelect();
             }
-        }
-        if (config.cluster_reissue_command){
-            /* If we need to reissue the command, break to prevent a
-               further 'repeat' number of dud interations */
-            break;
         }
         if (config.interval) usleep(config.interval);
         fflush(stdout); /* Make it grep friendly */
@@ -1336,6 +1298,12 @@ static int parseOptions(int argc, char **argv) {
             config.pipe_timeout = atoi(argv[++i]);
         } else if (!strcmp(argv[i],"--bigkeys")) {
             config.bigkeys = 1;
+        } else if (!strcmp(argv[i],"--memkeys")) {
+            config.memkeys = 1;
+            config.memkeys_samples = 0; /* use redis default */
+        } else if (!strcmp(argv[i],"--memkeys-samples")) {
+            config.memkeys = 1;
+            config.memkeys_samples = atoi(argv[++i]);
         } else if (!strcmp(argv[i],"--hotkeys")) {
             config.hotkeys = 1;
         } else if (!strcmp(argv[i],"--eval") && !lastarg) {
@@ -1471,6 +1439,11 @@ static void parseEnv() {
     if (auth != NULL && config.auth == NULL) {
         config.auth = auth;
     }
+
+    char *cluster_yes = getenv(REDIS_CLI_CLUSTER_YES_ENV);
+    if (cluster_yes != NULL && !strcmp(cluster_yes, "1")) {
+        config.cluster_manager_command.flags |= CLUSTER_MANAGER_CMD_FLAG_YES;
+    }
 }
 
 static sds readArgFromStdin(void) {
@@ -1534,7 +1507,10 @@ static void usage(void) {
 "  --pipe-timeout <n> In --pipe mode, abort with error if after sending all data.\n"
 "                     no reply is received within <n> seconds.\n"
 "                     Default timeout: %d. Use 0 to wait forever.\n"
-"  --bigkeys          Sample Redis keys looking for big keys.\n"
+"  --bigkeys          Sample Redis keys looking for keys with many elements (complexity).\n"
+"  --memkeys          Sample Redis keys looking for keys consuming a lot of memory.\n"
+"  --memkeys-samples <n> Sample Redis keys looking for keys consuming a lot of memory.\n"
+"                     And define number of key elements to sample\n"
 "  --hotkeys          Sample Redis keys looking for hot keys.\n"
 "                     only works when maxmemory-policy is *lfu.\n"
 "  --scan             List all keys using the SCAN command.\n"
@@ -1579,6 +1555,9 @@ static void usage(void) {
 }
 
 static int confirmWithYes(char *msg) {
+    if (config.cluster_manager_command.flags & CLUSTER_MANAGER_CMD_FLAG_YES) {
+        return 1;
+    }
     printf("%s (type 'yes' to accept): ", msg);
     fflush(stdout);
     char buf[4];
@@ -1610,12 +1589,12 @@ static int issueCommandRepeat(int argc, char **argv, long repeat) {
                 cliPrintContextError();
                 return REDIS_ERR;
             }
-        }
-        /* Issue the command again if we got redirected in cluster mode */
-        if (config.cluster_mode && config.cluster_reissue_command) {
+         }
+         /* Issue the command again if we got redirected in cluster mode */
+         if (config.cluster_mode && config.cluster_reissue_command) {
             cliConnect(CC_FORCE);
-        } else {
-            break;
+         } else {
+             break;
         }
     }
     return REDIS_OK;
@@ -1973,8 +1952,7 @@ static dictType clusterManagerDictType = {
 };
 
 typedef int clusterManagerCommandProc(int argc, char **argv);
-typedef int (*clusterManagerOnReplyError)(redisReply *reply,
-    clusterManagerNode *n, int bulk_idx);
+typedef int (*clusterManagerOnReplyError)(redisReply *reply, int bulk_idx);
 
 /* Cluster Manager helper functions */
 
@@ -2237,7 +2215,7 @@ static int clusterManagerCheckRedisReply(clusterManagerNode *n,
     return 1;
 }
 
-/* Call MULTI command on a cluster node. */
+/* Execute MULTI command on a cluster node. */
 static int clusterManagerStartTransaction(clusterManagerNode *node) {
     redisReply *reply = CLUSTER_MANAGER_COMMAND(node, "MULTI");
     int success = clusterManagerCheckRedisReply(node, reply, NULL);
@@ -2245,7 +2223,7 @@ static int clusterManagerStartTransaction(clusterManagerNode *node) {
     return success;
 }
 
-/* Call EXEC command on a cluster node. */
+/* Execute EXEC command on a cluster node. */
 static int clusterManagerExecTransaction(clusterManagerNode *node,
                                          clusterManagerOnReplyError onerror)
 {
@@ -2261,7 +2239,7 @@ static int clusterManagerExecTransaction(clusterManagerNode *node,
             redisReply *r = reply->element[i];
             char *err = NULL;
             success = clusterManagerCheckRedisReply(node, r, &err);
-            if (!success && onerror) success = onerror(r, node, i);
+            if (!success && onerror) success = onerror(r, i);
             if (err) {
                 if (!success)
                     CLUSTER_MANAGER_PRINT_REPLY_ERROR(node, err);
@@ -2806,55 +2784,6 @@ cleanup:
     return success;
 }
 
-/* Get the node the slot is assigned to from the point of view of node *n.
- * If the slot is unassigned or if the reply is an error, return NULL.
- * Use the **err argument in order to check wether the slot is unassigned
- * or the reply resulted in an error. */
-static clusterManagerNode *clusterManagerGetSlotOwner(clusterManagerNode *n,
-                                                      int slot, char **err)
-{
-    assert(slot >= 0 && slot < CLUSTER_MANAGER_SLOTS);
-    clusterManagerNode *owner = NULL;
-    redisReply *reply = CLUSTER_MANAGER_COMMAND(n, "CLUSTER SLOTS");
-    if (clusterManagerCheckRedisReply(n, reply, err)) {
-        assert(reply->type == REDIS_REPLY_ARRAY);
-        size_t i;
-        for (i = 0; i < reply->elements; i++) {
-            redisReply *r = reply->element[i];
-            assert(r->type == REDIS_REPLY_ARRAY && r->elements >= 3);
-            int from, to;
-            from = r->element[0]->integer;
-            to = r->element[1]->integer;
-            if (slot < from || slot > to) continue;
-            redisReply *nr =  r->element[2];
-            assert(nr->type == REDIS_REPLY_ARRAY && nr->elements >= 2);
-            char *name = NULL;
-            if (nr->elements >= 3)
-                name =  nr->element[2]->str;
-            if (name != NULL)
-                owner = clusterManagerNodeByName(name);
-            else {
-                char *ip = nr->element[0]->str;
-                assert(ip != NULL);
-                int port = (int) nr->element[1]->integer;
-                listIter li;
-                listNode *ln;
-                listRewind(cluster_manager.nodes, &li);
-                while ((ln = listNext(&li)) != NULL) {
-                    clusterManagerNode *nd = ln->value;
-                    if (strcmp(nd->ip, ip) == 0 && port == nd->port) {
-                        owner = nd;
-                        break;
-                    }
-                }
-            }
-            if (owner) break;
-        }
-    }
-    if (reply) freeReplyObject(reply);
-    return owner;
-}
-
 /* Set slot status to "importing" or "migrating" */
 static int clusterManagerSetSlot(clusterManagerNode *node1,
                                  clusterManagerNode *node2,
@@ -2895,19 +2824,8 @@ static int clusterManagerDelSlot(clusterManagerNode *node, int slot,
     char *err = NULL;
     int success = clusterManagerCheckRedisReply(node, reply, &err);
     if (!success && reply && reply->type == REDIS_REPLY_ERROR &&
-        ignore_unassigned_err)
-    {
-        char *get_owner_err = NULL;
-        clusterManagerNode *assigned_to =
-            clusterManagerGetSlotOwner(node, slot, &get_owner_err);
-        if (!assigned_to) {
-            if (get_owner_err == NULL) success = 1;
-            else {
-                CLUSTER_MANAGER_PRINT_REPLY_ERROR(node, get_owner_err);
-                zfree(get_owner_err);
-            }
-        }
-    }
+        ignore_unassigned_err &&
+        strstr(reply->str, "already unassigned") != NULL) success = 1;
     if (!success && err != NULL) {
         CLUSTER_MANAGER_PRINT_REPLY_ERROR(node, err);
         zfree(err);
@@ -2943,16 +2861,12 @@ static int clusterManagerBumpEpoch(clusterManagerNode *node) {
     return success;
 }
 
-/* Callback used by clusterManagerSetSlotOwner transaction. It should ignore
- * errors except for ADDSLOTS errors.
- * Return 1 if the error should be ignored. */
-static int clusterManagerOnSetOwnerErr(redisReply *reply,
-    clusterManagerNode *n, int bulk_idx)
-{
-    UNUSED(reply);
-    UNUSED(n);
-    /* Only raise error when ADDSLOTS fail (bulk_idx == 1). */
-    return (bulk_idx != 1);
+static int clusterManagerIgnoreUnassignedErr(redisReply *reply, int bulk_idx) {
+    if (bulk_idx == 0 && reply) {
+        if (reply->type == REDIS_REPLY_ERROR)
+            return strstr(reply->str, "already unassigned") != NULL;
+    }
+    return 0;
 }
 
 static int clusterManagerSetSlotOwner(clusterManagerNode *owner,
@@ -2967,71 +2881,8 @@ static int clusterManagerSetSlotOwner(clusterManagerNode *owner,
     clusterManagerAddSlot(owner, slot);
     if (do_clear) clusterManagerClearSlotStatus(owner, slot);
     clusterManagerBumpEpoch(owner);
-    success = clusterManagerExecTransaction(owner, clusterManagerOnSetOwnerErr);
-    return success;
-}
-
-/* Get the hash for the values of the specified keys in *keys_reply for the
- * specified nodes *n1 and *n2, by calling DEBUG DIGEST-VALUE redis command
- * on both nodes. Every key with same name on both nodes but having different
- * values will be added to the *diffs list. Return 0 in case of reply
- * error. */
-static int clusterManagerCompareKeysValues(clusterManagerNode *n1,
-                                          clusterManagerNode *n2,
-                                          redisReply *keys_reply,
-                                          list *diffs)
-{
-    size_t i, argc = keys_reply->elements + 2;
-    static const char *hash_zero = "0000000000000000000000000000000000000000";
-    char **argv = zcalloc(argc * sizeof(char *));
-    size_t  *argv_len = zcalloc(argc * sizeof(size_t));
-    argv[0] = "DEBUG";
-    argv_len[0] = 5;
-    argv[1] = "DIGEST-VALUE";
-    argv_len[1] = 12;
-    for (i = 0; i < keys_reply->elements; i++) {
-        redisReply *entry = keys_reply->element[i];
-        int idx = i + 2;
-        argv[idx] = entry->str;
-        argv_len[idx] = entry->len;
-    }
-    int success = 0;
-    void *_reply1 = NULL, *_reply2 = NULL;
-    redisReply *r1 = NULL, *r2 = NULL;
-    redisAppendCommandArgv(n1->context,argc, (const char**)argv,argv_len);
-    success = (redisGetReply(n1->context, &_reply1) == REDIS_OK);
-    if (!success) goto cleanup;
-    r1 = (redisReply *) _reply1;
-    redisAppendCommandArgv(n2->context,argc, (const char**)argv,argv_len);
-    success = (redisGetReply(n2->context, &_reply2) == REDIS_OK);
-    if (!success) goto cleanup;
-    r2 = (redisReply *) _reply2;
-    success = (r1->type != REDIS_REPLY_ERROR && r2->type != REDIS_REPLY_ERROR);
-    if (r1->type == REDIS_REPLY_ERROR) {
-        CLUSTER_MANAGER_PRINT_REPLY_ERROR(n1, r1->str);
-        success = 0;
-    }
-    if (r2->type == REDIS_REPLY_ERROR) {
-        CLUSTER_MANAGER_PRINT_REPLY_ERROR(n2, r2->str);
-        success = 0;
-    }
-    if (!success) goto cleanup;
-    assert(keys_reply->elements == r1->elements &&
-           keys_reply->elements == r2->elements);
-    for (i = 0; i < keys_reply->elements; i++) {
-        char *key = keys_reply->element[i]->str;
-        char *hash1 = r1->element[i]->str;
-        char *hash2 = r2->element[i]->str;
-        /* Ignore keys that don't exist in both nodes. */
-        if (strcmp(hash1, hash_zero) == 0 || strcmp(hash2, hash_zero) == 0)
-            continue;
-        if (strcmp(hash1, hash2) != 0) listAddNodeTail(diffs, key);
-    }
-cleanup:
-    if (r1) freeReplyObject(r1);
-    if (r2) freeReplyObject(r2);
-    zfree(argv);
-    zfree(argv_len);
+    success = clusterManagerExecTransaction(owner,
+        clusterManagerIgnoreUnassignedErr);
     return success;
 }
 
@@ -3115,10 +2966,8 @@ static int clusterManagerMigrateKeysInSlot(clusterManagerNode *source,
                                            char **err)
 {
     int success = 1;
-    int do_fix = config.cluster_manager_command.flags &
-                 CLUSTER_MANAGER_CMD_FLAG_FIX;
-    int do_replace = config.cluster_manager_command.flags &
-                     CLUSTER_MANAGER_CMD_FLAG_REPLACE;
+    int replace_existing_keys = (config.cluster_manager_command.flags &
+            (CLUSTER_MANAGER_CMD_FLAG_FIX | CLUSTER_MANAGER_CMD_FLAG_REPLACE));
     while (1) {
         char *dots = NULL;
         redisReply *reply = NULL, *migrate_reply = NULL;
@@ -3150,85 +2999,16 @@ static int clusterManagerMigrateKeysInSlot(clusterManagerNode *source,
         if (migrate_reply == NULL) goto next;
         if (migrate_reply->type == REDIS_REPLY_ERROR) {
             int is_busy = strstr(migrate_reply->str, "BUSYKEY") != NULL;
-            int not_served = 0;
-            if (!is_busy) {
-                /* Check if the slot is unassigned (not served) in the
-                 * source node's configuration. */
-                char *get_owner_err = NULL;
-                clusterManagerNode *served_by =
-                    clusterManagerGetSlotOwner(source, slot, &get_owner_err);
-                if (!served_by) {
-                    if (get_owner_err == NULL) not_served = 1;
-                    else {
-                        CLUSTER_MANAGER_PRINT_REPLY_ERROR(source,
-                                                          get_owner_err);
-                        zfree(get_owner_err);
-                    }
-                }
-            }
-            /* Try to handle errors. */
-            if (is_busy || not_served) {
-                /* If the key's slot is not served, try to assign slot
+            int not_served = strstr(migrate_reply->str, "slot not served") != NULL;
+            if (replace_existing_keys && (is_busy || not_served)) {
+                /* If the key already exists, try to migrate keys
+                 * adding REPLACE option.
+                 * If the key's slot is not served, try to assign slot
                  * to the target node. */
-                if (do_fix && not_served) {
-                    clusterManagerLogWarn("*** Slot was not served, setting "
-                                          "owner to node %s:%d.\n",
-                                          target->ip, target->port);
+                if (not_served)
                     clusterManagerSetSlot(source, target, slot, "node", NULL);
-                }
-                /* If the key already exists in the target node (BUSYKEY),
-                 * check whether its value is the same in both nodes.
-                 * In case of equal values, retry migration with the
-                 * REPLACE option.
-                 * In case of different values:
-                 *  - If the migration is requested by the fix command, stop
-                 *    and warn the user.
-                 *  - In other cases (ie. reshard), proceed only if the user
-                 *    launched the command with the --cluster-replace option.*/
-                if (is_busy) {
-                    clusterManagerLogWarn("\n*** Target key exists\n");
-                    if (!do_replace) {
-                        clusterManagerLogWarn("*** Checking key values on "
-                                              "both nodes...\n");
-                        list *diffs = listCreate();
-                        success = clusterManagerCompareKeysValues(source,
-                            target, reply, diffs);
-                        if (!success) {
-                            clusterManagerLogErr("*** Value check failed!\n");
-                            listRelease(diffs);
-                            goto next;
-                        }
-                        if (listLength(diffs) > 0) {
-                            success = 0;
-                            clusterManagerLogErr(
-                                "*** Found %d key(s) in both source node and "
-                                "target node having different values.\n"
-                                "    Source node: %s:%d\n"
-                                "    Target node: %s:%d\n"
-                                "    Keys(s):\n",
-                                listLength(diffs),
-                                source->ip, source->port,
-                                target->ip, target->port);
-                            listIter dli;
-                            listNode *dln;
-                            listRewind(diffs, &dli);
-                            while((dln = listNext(&dli)) != NULL) {
-                                char *k = dln->value;
-                                clusterManagerLogErr("    - %s\n", k);
-                            }
-                            clusterManagerLogErr("Please fix the above key(s) "
-                                                 "manually and try again "
-                                                 "or relaunch the command \n"
-                                                 "with --cluster-replace "
-                                                 "option to force key "
-                                                 "overriding.\n");
-                            listRelease(diffs);
-                            goto next;
-                        }
-                        listRelease(diffs);
-                    }
-                    clusterManagerLogWarn("*** Replacing target keys...\n");
-                }
+                clusterManagerLogWarn("*** Target key exists. "
+                                      "Replacing it for FIX.\n");
                 freeReplyObject(migrate_reply);
                 migrate_reply = clusterManagerMigrateKeysInReply(source,
                                                                  target,
@@ -3878,7 +3658,7 @@ static clusterManagerNode *clusterManagerNodeWithLeastReplicas() {
     return node;
 }
 
-/* This function returns a random master node, return NULL if none */
+/* This fucntion returns a random master node, return NULL if none */
 
 static clusterManagerNode *clusterManagerNodeMasterRandom() {
     int master_count = 0;
@@ -4488,7 +4268,7 @@ static int clusterManagerCheckCluster(int quiet) {
                                 n->port);
             for (i = 0; i < n->migrating_count; i += 2) {
                 sds slot = n->migrating[i];
-                dictReplace(open_slots, slot, sdsdup(n->migrating[i + 1]));
+                dictAdd(open_slots, slot, sdsdup(n->migrating[i + 1]));
                 char *fmt = (i > 0 ? ",%S" : "%S");
                 errstr = sdscatfmt(errstr, fmt, slot);
             }
@@ -4506,7 +4286,7 @@ static int clusterManagerCheckCluster(int quiet) {
                                 n->port);
             for (i = 0; i < n->importing_count; i += 2) {
                 sds slot = n->importing[i];
-                dictReplace(open_slots, slot, sdsdup(n->importing[i + 1]));
+                dictAdd(open_slots, slot, sdsdup(n->importing[i + 1]));
                 char *fmt = (i > 0 ? ",%S" : "%S");
                 errstr = sdscatfmt(errstr, fmt, slot);
             }
@@ -4569,7 +4349,7 @@ static int clusterManagerCheckCluster(int quiet) {
         /* Check whether there are multiple owners, even when slots are
          * fully covered and there are no open slots. */
         clusterManagerLogInfo(">>> Check for multiple slot owners...\n");
-        int slot = 0, slots_with_multiple_owners = 0;
+        int slot = 0;
         for (; slot < CLUSTER_MANAGER_SLOTS; slot++) {
             listIter li;
             listNode *ln;
@@ -4595,7 +4375,6 @@ static int clusterManagerCheckCluster(int quiet) {
                     clusterManagerNode *n = ln->value;
                     clusterManagerLogErr("    %s:%d\n", n->ip, n->port);
                 }
-                slots_with_multiple_owners++;
                 if (do_fix) {
                     result = clusterManagerFixMultipleSlotOwners(slot, owners);
                     if (!result) {
@@ -4603,13 +4382,11 @@ static int clusterManagerCheckCluster(int quiet) {
                                              "for slot %d\n", slot);
                         listRelease(owners);
                         break;
-                    } else slots_with_multiple_owners--;
+                    }
                 }
             }
             listRelease(owners);
         }
-        if (slots_with_multiple_owners == 0)
-            clusterManagerLogOk("[OK] No multiple owners found.\n");
     }
     return result;
 }
@@ -4918,6 +4695,12 @@ static int clusterManagerCommandCreate(int argc, char **argv) {
         cursor += slots_per_node;
     }
 
+    /* Rotating the list sometimes helps to get better initial
+     * anti-affinity before the optimizer runs. */
+    clusterManagerNode *first_node = interleaved[0];
+    for (i = 0; i < (interleaved_len - 1); i++)
+        interleaved[i] = interleaved[i + 1];
+    interleaved[interleaved_len - 1] = first_node;
     int assign_unused = 0, available_count = interleaved_len;
 assign_replicas:
     for (i = 0; i < masters_count; i++) {
@@ -5221,10 +5004,9 @@ static int clusterManagerCommandDeleteNode(int argc, char **argv) {
         if (!success) return 0;
     }
 
-    /* Finally send CLUSTER RESET to the node. */
-    clusterManagerLogInfo(">>> Sending CLUSTER RESET SOFT to the "
-                          "deleted node.\n");
-    redisReply *r = redisCommand(node->context, "CLUSTER RESET %s", "SOFT");
+    // Finally shutdown the node
+    clusterManagerLogInfo(">>> SHUTDOWN the node.\n");
+    redisReply *r = redisCommand(node->context, "SHUTDOWN");
     success = clusterManagerCheckRedisReply(node, r, NULL);
     if (r) freeReplyObject(r);
     return success;
@@ -6418,15 +6200,6 @@ static void pipeMode(void) {
  * Find big keys
  *--------------------------------------------------------------------------- */
 
-#define TYPE_STRING 0
-#define TYPE_LIST   1
-#define TYPE_SET    2
-#define TYPE_HASH   3
-#define TYPE_ZSET   4
-#define TYPE_STREAM 5
-#define TYPE_NONE   6
-#define TYPE_COUNT  7
-
 static redisReply *sendScan(unsigned long long *it) {
     redisReply *reply = redisCommand(context, "SCAN %llu", *it);
 
@@ -6473,28 +6246,51 @@ static int getDbSize(void) {
     return size;
 }
 
-static int toIntType(char *key, char *type) {
-    if(!strcmp(type, "string")) {
-        return TYPE_STRING;
-    } else if(!strcmp(type, "list")) {
-        return TYPE_LIST;
-    } else if(!strcmp(type, "set")) {
-        return TYPE_SET;
-    } else if(!strcmp(type, "hash")) {
-        return TYPE_HASH;
-    } else if(!strcmp(type, "zset")) {
-        return TYPE_ZSET;
-    } else if(!strcmp(type, "stream")) {
-        return TYPE_STREAM;
-    } else if(!strcmp(type, "none")) {
-        return TYPE_NONE;
-    } else {
-        fprintf(stderr, "Unknown type '%s' for key '%s'\n", type, key);
-        exit(1);
-    }
+typedef struct {
+    char *name;
+    char *sizecmd;
+    char *sizeunit;
+    unsigned long long biggest;
+    unsigned long long count;
+    unsigned long long totalsize;
+    sds biggest_key;
+} typeinfo;
+
+typeinfo type_string = { "string", "STRLEN", "bytes" };
+typeinfo type_list = { "list", "LLEN", "items" };
+typeinfo type_set = { "set", "SCARD", "members" };
+typeinfo type_hash = { "hash", "HLEN", "fields" };
+typeinfo type_zset = { "zset", "ZCARD", "members" };
+typeinfo type_stream = { "stream", "XLEN", "entries" };
+typeinfo type_other = { "other", NULL, "?" };
+
+static typeinfo* typeinfo_add(dict *types, char* name, typeinfo* type_template) {
+    typeinfo *info = zmalloc(sizeof(typeinfo));
+    *info = *type_template;
+    info->name = sdsnew(name);
+    dictAdd(types, info->name, info);
+    return info;
 }
 
-static void getKeyTypes(redisReply *keys, int *types) {
+void type_free(void* priv_data, void* val) {
+    typeinfo *info = val;
+    UNUSED(priv_data);
+    if (info->biggest_key)
+        sdsfree(info->biggest_key);
+    sdsfree(info->name);
+    zfree(info);
+}
+
+static dictType typeinfoDictType = {
+    dictSdsHash,               /* hash function */
+    NULL,                      /* key dup */
+    NULL,                      /* val dup */
+    dictSdsKeyCompare,         /* key compare */
+    NULL,                      /* key destructor (owned by the value)*/
+    type_free                  /* val destructor */
+};
+
+static void getKeyTypes(dict *types_dict, redisReply *keys, typeinfo **types) {
     redisReply *reply;
     unsigned int i;
 
@@ -6520,32 +6316,47 @@ static void getKeyTypes(redisReply *keys, int *types) {
             exit(1);
         }
 
-        types[i] = toIntType(keys->element[i]->str, reply->str);
+        sds typereply = sdsnew(reply->str);
+        dictEntry *de = dictFind(types_dict, typereply);
+        sdsfree(typereply);
+        typeinfo *type = NULL;
+        if (de)
+            type = dictGetVal(de);
+        else if (strcmp(reply->str, "none")) /* create new types for modules, (but not for deleted keys) */
+            type = typeinfo_add(types_dict, reply->str, &type_other);
+        types[i] = type;
         freeReplyObject(reply);
     }
 }
 
-static void getKeySizes(redisReply *keys, int *types,
-                        unsigned long long *sizes)
+static void getKeySizes(redisReply *keys, typeinfo **types,
+                        unsigned long long *sizes, int memkeys,
+                        unsigned memkeys_samples)
 {
     redisReply *reply;
-    char *sizecmds[] = {"STRLEN","LLEN","SCARD","HLEN","ZCARD"};
     unsigned int i;
 
     /* Pipeline size commands */
     for(i=0;i<keys->elements;i++) {
-        /* Skip keys that were deleted */
-        if(types[i]==TYPE_NONE)
+        /* Skip keys that disappeared between SCAN and TYPE (or unknown types when not in memkeys mode) */
+        if(!types[i] || (!types[i]->sizecmd && !memkeys))
             continue;
 
-        redisAppendCommand(context, "%s %s", sizecmds[types[i]],
-            keys->element[i]->str);
+        if (!memkeys)
+            redisAppendCommand(context, "%s %s",
+                types[i]->sizecmd, keys->element[i]->str);
+        else if (memkeys_samples==0)
+            redisAppendCommand(context, "%s %s %s",
+                "MEMORY", "USAGE", keys->element[i]->str);
+        else
+            redisAppendCommand(context, "%s %s %s SAMPLES %u",
+                "MEMORY", "USAGE", keys->element[i]->str, memkeys_samples);
     }
 
     /* Retrieve sizes */
     for(i=0;i<keys->elements;i++) {
-        /* Skip keys that disappeared between SCAN and TYPE */
-        if(types[i] == TYPE_NONE) {
+        /* Skip keys that disappeared between SCAN and TYPE (or unknown types when not in memkeys mode) */
+        if(!types[i] || (!types[i]->sizecmd && !memkeys)) {
             sizes[i] = 0;
             continue;
         }
@@ -6560,7 +6371,8 @@ static void getKeySizes(redisReply *keys, int *types,
              * added as a different type between TYPE and SIZE */
             fprintf(stderr,
                 "Warning:  %s on '%s' failed (may have changed type)\n",
-                 sizecmds[types[i]], keys->element[i]->str);
+                !memkeys? types[i]->sizecmd: "MEMORY USAGE",
+                keys->element[i]->str);
             sizes[i] = 0;
         } else {
             sizes[i] = reply->integer;
@@ -6570,16 +6382,22 @@ static void getKeySizes(redisReply *keys, int *types,
     }
 }
 
-static void findBigKeys(void) {
-    unsigned long long biggest[TYPE_COUNT] = {0}, counts[TYPE_COUNT] = {0}, totalsize[TYPE_COUNT] = {0};
+static void findBigKeys(int memkeys, unsigned memkeys_samples) {
     unsigned long long sampled = 0, total_keys, totlen=0, *sizes=NULL, it=0;
-    sds maxkeys[TYPE_COUNT] = {0};
-    char *typename[] = {"string","list","set","hash","zset","stream","none"};
-    char *typeunit[] = {"bytes","items","members","fields","members","entries",""};
     redisReply *reply, *keys;
     unsigned int arrsize=0, i;
-    int type, *types=NULL;
+    dictIterator *di;
+    dictEntry *de;
+    typeinfo **types = NULL;
     double pct;
+
+    dict *types_dict = dictCreate(&typeinfoDictType, NULL);
+    typeinfo_add(types_dict, "string", &type_string);
+    typeinfo_add(types_dict, "list", &type_list);
+    typeinfo_add(types_dict, "set", &type_set);
+    typeinfo_add(types_dict, "hash", &type_hash);
+    typeinfo_add(types_dict, "zset", &type_zset);
+    typeinfo_add(types_dict, "stream", &type_stream);
 
     /* Total keys pre scanning */
     total_keys = getDbSize();
@@ -6588,15 +6406,6 @@ static void findBigKeys(void) {
     printf("\n# Scanning the entire keyspace to find biggest keys as well as\n");
     printf("# average sizes per key type.  You can use -i 0.1 to sleep 0.1 sec\n");
     printf("# per 100 SCAN commands (not usually needed).\n\n");
-
-    /* New up sds strings to keep track of overall biggest per type */
-    for(i=0;i<TYPE_NONE; i++) {
-        maxkeys[i] = sdsempty();
-        if(!maxkeys[i]) {
-            fprintf(stderr, "Failed to allocate memory for largest key names!\n");
-            exit(1);
-        }
-    }
 
     /* SCAN loop */
     do {
@@ -6609,7 +6418,7 @@ static void findBigKeys(void) {
 
         /* Reallocate our type and size array if we need to */
         if(keys->elements > arrsize) {
-            types = zrealloc(types, sizeof(int)*keys->elements);
+            types = zrealloc(types, sizeof(typeinfo*)*keys->elements);
             sizes = zrealloc(sizes, sizeof(unsigned long long)*keys->elements);
 
             if(!types || !sizes) {
@@ -6621,34 +6430,38 @@ static void findBigKeys(void) {
         }
 
         /* Retrieve types and then sizes */
-        getKeyTypes(keys, types);
-        getKeySizes(keys, types, sizes);
+        getKeyTypes(types_dict, keys, types);
+        getKeySizes(keys, types, sizes, memkeys, memkeys_samples);
 
         /* Now update our stats */
         for(i=0;i<keys->elements;i++) {
-            if((type = types[i]) == TYPE_NONE)
+            typeinfo *type = types[i];
+            /* Skip keys that disappeared between SCAN and TYPE */
+            if(!type)
                 continue;
 
-            totalsize[type] += sizes[i];
-            counts[type]++;
+            type->totalsize += sizes[i];
+            type->count++;
             totlen += keys->element[i]->len;
             sampled++;
 
-            if(biggest[type]<sizes[i]) {
+            if(type->biggest<sizes[i]) {
                 printf(
                    "[%05.2f%%] Biggest %-6s found so far '%s' with %llu %s\n",
-                   pct, typename[type], keys->element[i]->str, sizes[i],
-                   typeunit[type]);
+                   pct, type->name, keys->element[i]->str, sizes[i],
+                   !memkeys? type->sizeunit: "bytes");
 
                 /* Keep track of biggest key name for this type */
-                maxkeys[type] = sdscpy(maxkeys[type], keys->element[i]->str);
-                if(!maxkeys[type]) {
+                if (type->biggest_key)
+                    sdsfree(type->biggest_key);
+                type->biggest_key = sdsnew(keys->element[i]->str);
+                if(!type->biggest_key) {
                     fprintf(stderr, "Failed to allocate memory for key!\n");
                     exit(1);
                 }
 
                 /* Keep track of the biggest size for this type */
-                biggest[type] = sizes[i];
+                type->biggest = sizes[i];
             }
 
             /* Update overall progress */
@@ -6676,26 +6489,29 @@ static void findBigKeys(void) {
        totlen, totlen ? (double)totlen/sampled : 0);
 
     /* Output the biggest keys we found, for types we did find */
-    for(i=0;i<TYPE_NONE;i++) {
-        if(sdslen(maxkeys[i])>0) {
-            printf("Biggest %6s found '%s' has %llu %s\n", typename[i], maxkeys[i],
-               biggest[i], typeunit[i]);
+    di = dictGetIterator(types_dict);
+    while ((de = dictNext(di))) {
+        typeinfo *type = dictGetVal(de);
+        if(type->biggest_key) {
+            printf("Biggest %6s found '%s' has %llu %s\n", type->name, type->biggest_key,
+               type->biggest, !memkeys? type->sizeunit: "bytes");
         }
     }
+    dictReleaseIterator(di);
 
     printf("\n");
 
-    for(i=0;i<TYPE_NONE;i++) {
+    di = dictGetIterator(types_dict);
+    while ((de = dictNext(di))) {
+        typeinfo *type = dictGetVal(de);
         printf("%llu %ss with %llu %s (%05.2f%% of keys, avg size %.2f)\n",
-           counts[i], typename[i], totalsize[i], typeunit[i],
-           sampled ? 100 * (double)counts[i]/sampled : 0,
-           counts[i] ? (double)totalsize[i]/counts[i] : 0);
+           type->count, type->name, type->totalsize, !memkeys? type->sizeunit: "bytes",
+           sampled ? 100 * (double)type->count/sampled : 0,
+           type->count ? (double)type->totalsize/type->count : 0);
     }
+    dictReleaseIterator(di);
 
-    /* Free sds strings containing max keys */
-    for(i=0;i<TYPE_NONE;i++) {
-        sdsfree(maxkeys[i]);
-    }
+    dictRelease(types_dict);
 
     /* Success! */
     exit(0);
@@ -7287,7 +7103,13 @@ int main(int argc, char **argv) {
     /* Find big keys */
     if (config.bigkeys) {
         if (cliConnect(0) == REDIS_ERR) exit(1);
-        findBigKeys();
+        findBigKeys(0, 0);
+    }
+
+    /* Find large keys */
+    if (config.memkeys) {
+        if (cliConnect(0) == REDIS_ERR) exit(1);
+        findBigKeys(1, config.memkeys_samples);
     }
 
     /* Find hot keys */
