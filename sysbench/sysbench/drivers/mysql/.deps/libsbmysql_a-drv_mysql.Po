@@ -3,24 +3,23 @@ libsbmysql_a-drv_mysql.o: drv_mysql.c ../../../config/config.h \
   /usr/include/sys/_null.h /usr/include/sys/_types.h \
   /usr/include/machine/_types.h /usr/include/x86/_types.h \
   /usr/include/machine/_limits.h /usr/include/x86/_limits.h \
-  /usr/include/strings.h \
-  /usr/home/ryan/workspace/sls/mysql/include/mysql.h \
+  /usr/include/strings.h /usr/home/ryan/workspace/mysql/include/mysql.h \
   /usr/include/stdbool.h /usr/include/stddef.h /usr/include/sys/types.h \
   /usr/include/machine/endian.h /usr/include/x86/endian.h \
   /usr/include/sys/_pthreadtypes.h /usr/include/sys/_stdint.h \
-  /usr/home/ryan/workspace/sls/mysql/libbinlogevents/export/binary_log_types.h \
-  /usr/home/ryan/workspace/sls/mysql/include/my_list.h \
-  /usr/home/ryan/workspace/sls/mysql/include/mysql_com.h \
-  /usr/home/ryan/workspace/sls/mysql/include/my_command.h \
-  /usr/home/ryan/workspace/sls/mysql/include/mysql/udf_registration_types.h \
-  /usr/home/ryan/workspace/sls/mysql/include/mysql/client_plugin.h \
+  /usr/home/ryan/workspace/mysql/libbinlogevents/export/binary_log_types.h \
+  /usr/home/ryan/workspace/mysql/include/my_list.h \
+  /usr/home/ryan/workspace/mysql/include/mysql_com.h \
+  /usr/home/ryan/workspace/mysql/include/my_command.h \
+  /usr/home/ryan/workspace/mysql/include/mysql/udf_registration_types.h \
+  /usr/home/ryan/workspace/mysql/include/mysql/client_plugin.h \
   /usr/include/stdarg.h /usr/include/x86/stdarg.h \
   /usr/include/sys/_stdarg.h /usr/include/stdlib.h \
-  /usr/home/ryan/workspace/sls/mysql/include/mysql/plugin_auth_common.h \
-  /usr/home/ryan/workspace/sls/mysql/build/include/mysql_version.h \
-  /usr/home/ryan/workspace/sls/mysql/include/mysql_time.h \
-  /usr/home/ryan/workspace/sls/mysql/include/errmsg.h \
-  /usr/home/ryan/workspace/sls/mysql/build/include/mysqld_error.h \
+  /usr/home/ryan/workspace/mysql/include/mysql/plugin_auth_common.h \
+  /usr/home/ryan/workspace/mysql/build/include/mysql_version.h \
+  /usr/home/ryan/workspace/mysql/include/mysql_time.h \
+  /usr/home/ryan/workspace/mysql/include/errmsg.h \
+  /usr/home/ryan/workspace/mysql/build/include/mysqld_error.h \
   ../../../sysbench/sb_options.h /usr/include/stdio.h \
   ../../../sysbench/sb_list.h ../../../sysbench/db_driver.h \
   ../../../sysbench/sysbench.h /usr/include/unistd.h \
@@ -55,7 +54,7 @@ libsbmysql_a-drv_mysql.o: drv_mysql.c ../../../config/config.h \
 
 /usr/include/strings.h:
 
-/usr/home/ryan/workspace/sls/mysql/include/mysql.h:
+/usr/home/ryan/workspace/mysql/include/mysql.h:
 
 /usr/include/stdbool.h:
 
@@ -71,17 +70,17 @@ libsbmysql_a-drv_mysql.o: drv_mysql.c ../../../config/config.h \
 
 /usr/include/sys/_stdint.h:
 
-/usr/home/ryan/workspace/sls/mysql/libbinlogevents/export/binary_log_types.h:
+/usr/home/ryan/workspace/mysql/libbinlogevents/export/binary_log_types.h:
 
-/usr/home/ryan/workspace/sls/mysql/include/my_list.h:
+/usr/home/ryan/workspace/mysql/include/my_list.h:
 
-/usr/home/ryan/workspace/sls/mysql/include/mysql_com.h:
+/usr/home/ryan/workspace/mysql/include/mysql_com.h:
 
-/usr/home/ryan/workspace/sls/mysql/include/my_command.h:
+/usr/home/ryan/workspace/mysql/include/my_command.h:
 
-/usr/home/ryan/workspace/sls/mysql/include/mysql/udf_registration_types.h:
+/usr/home/ryan/workspace/mysql/include/mysql/udf_registration_types.h:
 
-/usr/home/ryan/workspace/sls/mysql/include/mysql/client_plugin.h:
+/usr/home/ryan/workspace/mysql/include/mysql/client_plugin.h:
 
 /usr/include/stdarg.h:
 
@@ -91,15 +90,15 @@ libsbmysql_a-drv_mysql.o: drv_mysql.c ../../../config/config.h \
 
 /usr/include/stdlib.h:
 
-/usr/home/ryan/workspace/sls/mysql/include/mysql/plugin_auth_common.h:
+/usr/home/ryan/workspace/mysql/include/mysql/plugin_auth_common.h:
 
-/usr/home/ryan/workspace/sls/mysql/build/include/mysql_version.h:
+/usr/home/ryan/workspace/mysql/build/include/mysql_version.h:
 
-/usr/home/ryan/workspace/sls/mysql/include/mysql_time.h:
+/usr/home/ryan/workspace/mysql/include/mysql_time.h:
 
-/usr/home/ryan/workspace/sls/mysql/include/errmsg.h:
+/usr/home/ryan/workspace/mysql/include/errmsg.h:
 
-/usr/home/ryan/workspace/sls/mysql/build/include/mysqld_error.h:
+/usr/home/ryan/workspace/mysql/build/include/mysqld_error.h:
 
 ../../../sysbench/sb_options.h:
 

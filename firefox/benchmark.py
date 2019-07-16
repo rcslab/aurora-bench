@@ -5,6 +5,7 @@ import json
 import sys 
 import os
 import select
+import argparse
 
 from subprocess import check_output
 
@@ -16,44 +17,53 @@ from selenium.webdriver.support import expected_conditions as expected
 from selenium.webdriver.support.wait import WebDriverWait
 
 
-if __name__ == "__main__":
-    options = Options()
-    options.add_argument('-headless')
-
-    profile = FirefoxProfile()
-    profile.DEFAULT_PREFERENCES['frozen']['network.http.spdy.enabled.http2'] = False
-    # profile.accept_untrusted_certs = True
-    driver = Firefox(firefox_binary='/usr/local/bin/firefox', options=options, 
-            firefox_profile=profile)
-    wait = WebDriverWait(driver, timeout=120000)
-    print("Driver started")
+def run(driver, wait, options, stop):
+    print("Run Started")
     driver.get('http://localhost:8000/kraken-1.1/driver.html')
     pids = list(map(int, (check_output(["pgrep", "firefox"]).decode("utf-8").split("\n")[0:-1])))
-    print(pids)
 
-    # for pid in pids:
-        # print("Starting checkpoint for {}".format(pid))
-        # check_output(["./slsctl", "checkpoint", "-p", str(pid), "-f", str(pid) + ".sls"])
-        # print("Started checkpoint for {}".format(pid))
+    if not stop:
+        if options.sls:
+            for pid in pids:
+                check_output(["./slsctl", "ckptstart", "-p", str(pid), "-t", options.t[0], "-f", str(pid) + ".sls", "-s"])
+                print("Checkpoint started {}".format(pid))
 
     wait.until(lambda driver : "results" in driver.current_url)
 
-    # for pid in pids:
-        # print("Stopping checkpoint for {}".format(pid))
-        # check_output(["./slsctl", "ckptstop", "-p", str(pid)])
-        # print("Stopped checkpoint for {}".format(pid))
+    if stop:
+        if options.sls:
+            for pid in pids:
+                check_output(["./slsctl", "ckptstop", "-p", str(pid)])
+                print("Checkpoint stopped {}".format(pid))
 
-    # elapsed = time.time() - start
     values = urllib.parse.unquote(driver.current_url.split('?')[1]) 
     vals = json.loads(values)
     runtime = 0
     for key, v in vals.items():
         if (key != "v"):  
             runtime += sum(list(map(int, v)))
-    print(runtime)
-    # while sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
-        # line = sys.stdin.readline()
-        # if line:
+    return runtime
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Firefox benchmark for sls')
+    parser.add_argument('--sls', action='store_true')
+    parser.add_argument('-t', default=1000)
+    parser.add_argument('--single-process', action='store_true')
+    args = parser.parse_args(sys.argv[1:])
+
+    options = Options()
+    options.add_argument('-headless')
+    profile = FirefoxProfile()
+    profile.DEFAULT_PREFERENCES['frozen']['network.http.spdy.enabled.http2'] = False
+    if args.single_process:
+        profile.DEFAULT_PREFERENCES['frozen']['browser.tabs.remote.autostart'] = False
+        profile.DEFAULT_PREFERENCES['frozen']['autostarter.privatebrowsing.autostart'] = False
+    driver = Firefox(firefox_binary='/usr/local/bin/firefox', options=options, 
+            firefox_profile=profile)
+    wait = WebDriverWait(driver, timeout=120000)
+    print("Driver started")
+    print(run(driver, wait, args, False))
+    print(run(driver, wait, args, True))
     driver.close()
     driver.quit()
     exit()
