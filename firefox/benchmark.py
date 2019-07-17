@@ -21,11 +21,12 @@ def run(driver, wait, options, stop):
     print("Run Started")
     driver.get('http://localhost:8000/kraken-1.1/driver.html')
     pids = list(map(int, (check_output(["pgrep", "firefox"]).decode("utf-8").split("\n")[0:-1])))
+    print(pids)
 
     if not stop:
         if options.sls:
             for pid in pids:
-                check_output(["./slsctl", "ckptstart", "-p", str(pid), "-t", options.t[0], "-f", str(pid) + ".sls", "-s"])
+                check_output(["./slsctl", "ckptstart", "-p", str(pid), "-t", options.t[0], "-f", str(pid) + ".sls"])
                 print("Checkpoint started {}".format(pid))
 
     wait.until(lambda driver : "results" in driver.current_url)
@@ -65,5 +66,6 @@ if __name__ == "__main__":
     print(run(driver, wait, args, False))
     print(run(driver, wait, args, True))
     driver.close()
+    time.sleep(10)
     driver.quit()
     exit()

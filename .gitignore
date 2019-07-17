@@ -3,3 +3,4 @@ firefox/venv
 *.so
 *.so.21
 *.cache
+venv
