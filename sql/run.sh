@@ -7,20 +7,26 @@ FREQ=$3
 
 if [ -z "$1" ]
 then
-	echo "run.sh SQL_BIN_DIR  SLS_DIR FREQ"
+	echo "run.sh SQL_BIN_DIR SLS_DIR FREQ"
 	exit 1
 fi
 
 if [ -z "$2" ]
 then
-	echo "run.sh SQL_BIN_DIR  SLS_DIR FREQ"
+	echo "run.sh SQL_BIN_DIR SLS_DIR FREQ"
 	exit 1
+fi
+
+if ! [[ -z "$FREQ" ]]
+then
+	echo "Running with SLS - Freq set at $FREQ"
 fi
 
 export LD_PRELOAD=./libmysqlclient.so.21
 
 SYSBENCH=./sysb
-SLS=$SLS_DIR/tools/slsctl/slsctl
+cp $SLS_DIR/tools/slsctl/slsctl .
+SLS=./slsctl
 
 $SYSBENCH --version;
 if [ $? -ne 0 ]
@@ -51,29 +57,38 @@ $SQLD --user=ryan --bind-address=127.0.0.1 \
 
 
 sleep 8
-PID=`pidof mysqld`
+# This removes space
+PID=`pidof mysqld | xargs`
 echo $PID
 
 echo "Creating password - db1234 for database"
 python3 setup.py pre
 
 $SYSBENCH --test=oltp --mysql-table-engine=memory --oltp-table-size=10000 --mysql-user=root --mysql-password=db1234 --mysql-port=33060 prepare
-if [ -z "$3" ]
+if ! [[ -z "$FREQ" ]]
 then
 echo "Checkpointing started of $PID"
-$SLS chkptstart -p $PID -t $3 -f $PID.sls
+echo "$SLS chkptstart -p $PID -t $FREQ -f /root/$PID.sls"
+$SLS chkptstart -p $PID -t $FREQ -f {$PID}.sls
+if [ $? -ne 0 ]
+then
+	echo "ERROR IN SLS CALL"
+fi
+
 fi
 
 $SYSBENCH --num-threads=8 --max-requests=3000 --test=oltp --oltp-table-size=10000 --mysql-user=root --mysql-password=db1234 --mysql-port=33060 run 
 
-if [-z "$3" ]
+if ! [[ -z "$FREQ" ]]
 then
 echo "Checkpointing stopped of $PID"
+echo "$SLS chkptstop -p $PID"
 $SLS chkptstop -p $PID
 fi
 
 echo "Killing daemon and unloading kernal module"
 pkill mysqld
 rm -rf $DATA_DIR
+rm slsctl
 kldunload sls.ko
 
