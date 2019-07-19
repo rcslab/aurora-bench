@@ -1,6 +1,5 @@
 #!/usr/local/bin/bash
 
-
 BIN=$1
 SLS_DIR=$2
 FREQ=$3
@@ -67,14 +66,13 @@ python3 setup.py pre
 $SYSBENCH --test=oltp --mysql-table-engine=memory --oltp-table-size=10000 --mysql-user=root --mysql-password=db1234 --mysql-port=33060 prepare
 if ! [[ -z "$FREQ" ]]
 then
-echo "Checkpointing started of $PID"
-echo "$SLS chkptstart -p $PID -t $FREQ -f /root/$PID.sls"
-$SLS chkptstart -p $PID -t $FREQ -f {$PID}.sls
-if [ $? -ne 0 ]
-then
-	echo "ERROR IN SLS CALL"
-fi
-
+	echo "Checkpointing started of $PID"
+	echo "$SLS ckptstart -p $PID -t $FREQ -f /root/$PID.sls"
+	$SLS ckptstart -p $PID -t $FREQ -f {$PID}.sls
+	if [ $? -ne 0 ]
+	then
+		echo "ERROR IN SLS CALL"
+	fi
 fi
 
 $SYSBENCH --num-threads=8 --max-requests=3000 --test=oltp --oltp-table-size=10000 --mysql-user=root --mysql-password=db1234 --mysql-port=33060 run 
@@ -82,8 +80,8 @@ $SYSBENCH --num-threads=8 --max-requests=3000 --test=oltp --oltp-table-size=1000
 if ! [[ -z "$FREQ" ]]
 then
 echo "Checkpointing stopped of $PID"
-echo "$SLS chkptstop -p $PID"
-$SLS chkptstop -p $PID
+echo "$SLS ckptstop -p $PID"
+$SLS ckptstop -p $PID
 fi
 
 echo "Killing daemon and unloading kernal module"
