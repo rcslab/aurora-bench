@@ -67,8 +67,8 @@ $SYSBENCH --test=oltp --mysql-table-engine=memory --oltp-table-size=10000 --mysq
 if ! [[ -z "$FREQ" ]]
 then
 	echo "Checkpointing started of $PID"
-	echo "$SLS ckptstart -p $PID -t $FREQ -f /root/$PID.sls"
-	$SLS ckptstart -p $PID -t $FREQ -f {$PID}.sls
+	echo "$SLS ckptstart -p $PID -t $FREQ -f /$PID.sls"
+	$SLS ckptstart -p $PID -t $FREQ -f $PID.sls
 	if [ $? -ne 0 ]
 	then
 		echo "ERROR IN SLS CALL"
@@ -84,9 +84,11 @@ echo "$SLS ckptstop -p $PID"
 $SLS ckptstop -p $PID
 fi
 
+sleep 5
 echo "Killing daemon and unloading kernal module"
 pkill mysqld
 rm -rf $DATA_DIR
 rm slsctl
 kldunload sls.ko
+rm /$PID.sls
 
