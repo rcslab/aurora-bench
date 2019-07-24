@@ -1,14 +1,12 @@
 #!/bin/bash
 
-redis="/mnt/hongbo/sls-bench/redis/src/redis-server"
-sls="/mnt/hongbo/sls/tools/slsctl/slsctl"
-ycsb="/mnt/hongbo/sls-bench/YCSB/"
-redisbench="/mnt/hongbo/sls-bench/redis/src/redis-benchmark"
-sls="/mnt/hongbo/sls/tools/slsctl/slsctl"
+redis="/root/sls-bench/redis/src/redis-server"
+sls="/usr/home/ryan/sls/tools/slsctl/slsctl"
+ycsb="/root/sls-bench/YCSB"
+redisbench="/root/sls-bench/redis/src/redis-benchmark"
 
 clean_dump () {
-	rm -f appendonly.aof dump.rdb slsdump.x
-	touch slsdump.x
+	rm -f appendonly.aof dump.rdb /slsdump.x
 }
 
 start_redis () {
@@ -68,7 +66,7 @@ run_experiment () {
 		sls_n=$3
 		bench_type=$4
 		start_redis mem
-		$sls ckptstart -p `pidof redis-server` -t $sls_t -n $sls_n -f $PWD/slsdump.x -d
+		$sls ckptstart -p `pidof redis-server` -t $sls_t -n $sls_n -f slsdump.x -d
 		start_bench $bench_type ${@:5}
 	else
 		bench_type=$2
