@@ -68,6 +68,7 @@ if ! [[ -z "$FREQ" ]]
 then
 	echo "Checkpointing started of $PID"
 	echo "$SLS ckptstart -p $PID -t $FREQ -f /$PID.sls"
+	$(dtrace -s ../sls-trace.d -p $PID -o trace.log $PID) &
 	$SLS ckptstart -p $PID -t $FREQ -f $PID.sls
 	if [ $? -ne 0 ]
 	then
@@ -87,6 +88,7 @@ fi
 sleep 5
 echo "Killing daemon and unloading kernal module"
 pkill mysqld
+sleep 10
 rm -rf $DATA_DIR
 rm slsctl
 kldunload sls.ko
