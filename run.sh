@@ -2,6 +2,7 @@
 
 SLS_DIR=$1
 FREQ=$2
+TRACE=$3
 
 if ! [[ -z "$FREQ" ]]
 then
@@ -24,8 +25,8 @@ if ! [[ -z "$FREQ" ]]
 then
 	echo "Checkpointing started of $PID"
 	echo "$SLS ckptstart -p $PID -t $FREQ -f /$PID.sls"
-	#$(dtrace -s sls-trace.d -p $PID -o /slsbench/trace.log $PID) &
-	$SLS ckptstart -p $PID -t $FREQ -f $PID.sls
+	$(dtrace -s $TRACE -o trace.log $PID) &
+	$SLS ckptstart -p $PID -t $FREQ -f /$PID.sls
 	if [ $? -ne 0 ]
 	then
 		echo "ERROR IN SLS CALL"
