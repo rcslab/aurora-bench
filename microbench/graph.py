@@ -8,16 +8,13 @@ colors = ['b','r','g','c','m','y','k']
 
 class Figure:
 
-    FigureCounter = 0
-
     def __init__(self, title, *argv):
-        Figure.FigureCounter += 1
-        self.figure = Figure.FigureCounter
+        self.figure = title
         self.graphs = []
         for arg in argv:
             self.graphs.append(arg)
 
-    def get_figure(self):
+    def fig(self):
         c = math.sqrt(len(self.graphs))
         # Square figure
         if (c == int(c)):
@@ -26,40 +23,46 @@ class Figure:
         else:
             dimensions = (1, len(self.graphs))
 
-        fig = plt.figure(self.figure)
+        plt.figure(self.figure, figsize=(8,8))
         plt.clf()
         index = 1
         for graph in self.graphs:
-            ax = fig.add_subplot(dimensions[0], dimensions[1], index)
-            ax.errorbar(graphs.xcords, self.ycords, yerr=graphs.stddev,
-                    title=graph.title,
-                    xlabel=graph.xlabel,
-                    ylabel=graph.ylabel)
+            plt.subplot(*dimensions, index)
+            print(graph.stddev)
+            plt.errorbar(graph.xcords, graph.ycords,
+                    yerr=graph.stddev)
+            plt.xlabel(graph.xlabel)
+            plt.ylabel(graph.ylabel)
             index += 1
 
-        return fig
-
     def show(self):
-        fig = self.get_figure()
-        fig.show()        
+        self.fig()
+        plt.show()        
 
 class LineGraph:
 
     def __init__(self, csv_path, xlabel, ylabel, title):
-        vals = csv.reader(csv_path, delimiter=',')
-        self.xcords = []
-        self.ycords = []
-        self.stddev = []
-        self.xlabel = xlabel
-        self.ylabel = ylabel
-        self.title = title
-        for row in vals:
-            if len(row) != 3:
-                continue
-            print(row)
-            self.xcords.append(row[0])
-            self.ycords.append(row[1])
-            self.stddev.append(row[2])
+        with open(csv_path) as f:
+            vals = csv.reader(f, delimiter=',')
+            self.xcords = []
+            self.ycords = []
+            self.stddev = []
+            self.xlabel = xlabel
+            self.ylabel = ylabel
+            self.title = title
+            for row in vals:
+                if len(row) != 3:
+                    continue
+                self.xcords.append(row[0])
+                self.ycords.append(row[1])
+                self.stddev.append(row[2])
+
+            # Remove Titles
+            self.remove_point(0)
+            # Make ints
+            self.xcords = list(map(int, self.xcords))
+            self.ycords = list(map(int, self.ycords))
+            self.stddev = list(map(int, self.stddev))
 
     def remove_point(self, point):
         self.xcords.pop(point)
