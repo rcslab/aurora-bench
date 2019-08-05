@@ -11,6 +11,8 @@ for f in listdir("./"):
             env = Environment()
             env.Append(CC="clang++")
             env.Append(CCFLAGS ="-pthread -DELOG -g")
-            env.Append(LIBS = ["pthread"])
+            env.Append(CPPPATH = ["/usr/home/ryan/sls/include"])
+            env.Append(LIBS = ["pthread", "sbuf", "sls"])
+            env.Append(LIBPATH = ["/usr/home/ryan/sls/libsls"])
             env.Program(splits[0], [f])
 

@@ -10,6 +10,11 @@
 #include <sstream>
 #include <chrono>
 
+extern "C" {
+#include <sls.h>
+#include <sls_ioctl.h>
+};
+
 
 #ifdef ELOG
 
@@ -38,6 +43,11 @@ struct Params {
     size_t numObj;
     size_t runFor;
     size_t numFiles;
+};
+
+sls_backend slsBackend {
+    .bak_target = SLS_OSD,
+    .bak_id = static_cast<uint64_t>(getpid())
 };
 
 Params
