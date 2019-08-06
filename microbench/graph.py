@@ -26,11 +26,18 @@ class Figure:
         plt.figure(self.figure, figsize=(8,8))
         plt.clf()
         index = 1
-        for graph in self.graphs:
-            plt.subplot(*dimensions, index)
-            print(graph.stddev)
-            plt.errorbar(graph.xcords, graph.ycords,
-                    yerr=graph.stddev)
+        f, axs = plt.subplots(dimensions[0], dimensions[1], sharey=True);
+        translate = dict()
+        index = 0;
+        for row in axs:
+            for x in row:
+                translate[index] = x
+                index += 1
+
+        for i, graph in enumerate(self.graphs):
+            for k, v in graph.ycords.items():
+                translate[i].errorbar(graph.xcords, v,
+                        yerr=graph.stddev[k])
             plt.xlabel(graph.xlabel)
             plt.ylabel(graph.ylabel)
             index += 1
@@ -44,27 +51,34 @@ class LineGraph:
     def __init__(self, csv_path, xlabel, ylabel, title):
         with open(csv_path) as f:
             vals = csv.reader(f, delimiter=',')
+            header = next(vals, None)
+            num_lines = len(header) - 1
+            if (num_lines % 2) != 0:
+                print("Improper CSV formating for {}".format(csv_path))
+                return;
+            else:
+                num_lines = int(num_lines / 2)
+            
+            
             self.xcords = []
-            self.ycords = []
-            self.stddev = []
+            self.ycords = dict()
+            self.stddev = dict()
+            for x in range(0, num_lines):
+                self.ycords[x] = []
+                self.stddev[x] = []
             self.xlabel = xlabel
             self.ylabel = ylabel
             self.title = title
             for row in vals:
-                if len(row) != 3:
-                    continue
-                self.xcords.append(row[0])
-                self.ycords.append(row[1])
-                self.stddev.append(row[2])
-
-            # Remove Titles
-            self.remove_point(0)
-            # Make ints
-            self.xcords = list(map(int, self.xcords))
-            self.ycords = list(map(int, self.ycords))
-            self.stddev = list(map(int, self.stddev))
+                self.xcords.append(int(row[0]))
+                for line in range(0, num_lines):
+                    self.ycords[line].append(int(row[(line * 2) + 1]))
+                    self.stddev[line].append(int(row[((line + 1) * 2)]))
 
     def remove_point(self, point):
         self.xcords.pop(point)
-        self.ycords.pop(point)
-        self.stddev.pop(point)
+        for k, v in self.ycords.items():
+            self.ycords[k].pop(point)
+
+        for k, v in self.stddev.items():
+            self.stdev[k].pop(point)

@@ -99,7 +99,8 @@ def aggregate():
         path = "data/" + dir
         values = tablify(path, dir)
         with open("data/" + dir + ".csv", "a+") as f:
-            f.write(dir + ", us, stddev\n")
+            f.write(dir + \
+                ", stop(ns), stop-stddev(ns), cont(ns), cont-stddev(ns)\n")
             for h, v in values:
                 f.write("{},{},{},{},{}\n".format(h, int(numpy.mean(v["s"])), 
                     int(numpy.std(v["s"])), int(numpy.mean(v["c"])), 

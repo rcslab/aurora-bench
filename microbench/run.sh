@@ -14,6 +14,7 @@ rm trace.log > /dev/null 2>&1
 
 kldload $SLS_DIR/slos/slos.ko > /dev/null 2>&1
 kldload $SLS_DIR/kmod/sls.ko > /dev/null 2>&1
+$SLS_DIR/tools/newosd/newosd /dev/vtbd1
 
 echo "$COMMAND $@"
 

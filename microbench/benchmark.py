@@ -52,6 +52,6 @@ def files(args):
         run_benchmark("file_bench", args, params)
 
 Benchmarker.run()
-#Benchmarker.show()
+Benchmarker.show()
 
 
