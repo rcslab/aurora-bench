@@ -59,18 +59,20 @@ def aggregate():
         values = dict()
         with open(path, 'r') as f:
             for line in f:
-                line = line.strip();
+                line = line.strip()
                 if (line == ""):
                     continue
+                if (line == "Counts"):
+                    break 
                 columns = re.split(r'\s{2,}', line);
                 if len(columns) == 2:
                     values[columns[0]] = int(columns[1].strip())
 
         if(len(values) > 0):
-            time = values["sls_stop_proc"] + values["SIGSTOP to SIGCONT"]
             title = int(name.split(".")[0].split("-")[0])
 
-            return (title, time)
+            return (title, values["sls_stop_proc"],
+                        values["SIGSTOP to SIGCONT"])
         else:
             time.sleep(1)
             print("RETRYING " + path)
@@ -82,11 +84,14 @@ def aggregate():
         values = dict()
         for trace in os.listdir(path):
             new_path = path + "/" + trace
-            header, val = parse_trace(new_path, trace)
+            header, stop, cont = parse_trace(new_path, trace)
             if header in values:
-                values[header].append(val)
+                values[header]["s"].append(stop)
+                values[header]["c"].append(cont)
             else:
-                values[header] = [val]
+                values[header] = dict()
+                values[header]["s"] = [stop]
+                values[header]["c"] = [cont]
 
         return sorted(values.items(), key = lambda x : x[0])
     
@@ -96,8 +101,9 @@ def aggregate():
         with open("data/" + dir + ".csv", "a+") as f:
             f.write(dir + ", us, stddev\n")
             for h, v in values:
-                f.write("{},{},{}\n".format(h, int(numpy.mean(v)), 
-                    int(numpy.std(v))))
+                f.write("{},{},{},{},{}\n".format(h, int(numpy.mean(v["s"])), 
+                    int(numpy.std(v["s"])), int(numpy.mean(v["c"])), 
+                    int(numpy.std(v["c"]))))
 
 class Benchmarker:
     bm = []

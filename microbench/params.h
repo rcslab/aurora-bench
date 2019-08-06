@@ -50,6 +50,28 @@ sls_backend slsBackend {
     .bak_id = static_cast<uint64_t>(getpid())
 };
 
+class SLSCheck {
+    public:
+	SLSCheck(size_t freq) 
+	{
+	    sls_attr attr;
+	    attr.attr_backend = slsBackend;
+	    attr.attr_mode = SLS_FULL;
+	    attr.attr_period = freq;
+	    sls_attach(getpid(), attr);
+	}
+
+	~SLSCheck()
+	{
+	    sls_detach(getpid());
+	}
+
+	void checkpoint()
+	{
+	    sls_checkpoint(getpid());
+	}
+};
+
 Params
 getParams(int argc, char *argv[])
 {

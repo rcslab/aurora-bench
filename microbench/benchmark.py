@@ -13,7 +13,7 @@ def memory(args):
     params["-s"] = args.run_for
     params["variable"] = "-m"
     params["-t"] = 1
-    for t in range(step, memory, step):
+    for t in range(step, memory + 1, step):
         params["-m"] = t
         run_benchmark("memory_bench", args, params)
 
@@ -51,7 +51,7 @@ def files(args):
         params["-f"] = t
         run_benchmark("file_bench", args, params)
 
-#Benchmarker.run()
-Benchmarker.show()
+Benchmarker.run()
+#Benchmarker.show()
 
 

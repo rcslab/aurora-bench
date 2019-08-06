@@ -7,26 +7,28 @@
 
 int main(int argc, char *argv[])
 {
-	sls_attr attr;
+	auto c = SLSCheck(0);
 	auto args = getParams(argc, argv);
-	auto start = TIME();
-	std::vector<std::string> fds;
-	for(int i = 0; i < args.numFiles; i++) {
-	    std::stringstream ss;
-	    ss << "/tmp/" << i << ".slsmicro";
-	    auto fd = open(ss.str().c_str(), O_CREAT );
-	    fds.push_back(ss.str());
-	}
-	attr.attr_backend = slsBackend;
-	attr.attr_mode = SLS_OSD;
-	attr.attr_period = 1000;
-	sls_attach(getpid(), attr);
-	WAIT(args.runFor);
-	for(auto &name : fds) {
-	    unlink(name.c_str());
+	std::vector<std::string> names;
+	std::vector<int> fds;
+	for (int i = 0; i < args.runFor; i++) {
+	    for(int i = 0; i < args.numFiles; i++) {
+		std::stringstream ss;
+		ss << "/tmp/" << i << ".slsmicro";
+		auto fd = open(ss.str().c_str(), O_CREAT );
+		names.push_back(ss.str());
+		fds.push_back(fd);
+	    }
+
+	    c.checkpoint();
+	    WAIT(1)
+	    for(auto &fd : fds) {
+		close(fd);
+	    }
+	    for(auto &name : names) {
+		unlink(name.c_str());
+	    }
 	}
 
 	return 0;
-
-
 }
