@@ -7,8 +7,8 @@
 
 int main(int argc, char *argv[])
 {
-	auto c = SLSCheck(0);
 	auto args = getParams(argc, argv);
+	auto c = SLSCheck(args.type, 0);
 	std::vector<std::string> names;
 	std::vector<int> fds;
 	for (int i = 0; i < args.runFor; i++) {

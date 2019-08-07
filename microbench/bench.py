@@ -181,5 +181,7 @@ class Benchmarker:
                 "How many step to get from min to max", metavar='')
         parser.add("--repeat", type=int, default=1, help= \
                 "Repeat each benchmark this many times", metavar='')
+        parser.add("--type", default="osd", choices=["osd","file"], help= \
+                "SLS Backend type", metavar='')
         return parser
 

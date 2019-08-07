@@ -4,7 +4,7 @@ int main(int argc, char *argv[])
 {
 	auto args = getParams(argc, argv);
 	std::vector<std::thread> threads(args.threads);
-	auto c = SLSCheck(0);
+	auto c = SLSCheck(args.type, 0);
 	for (int i = 0; i < threads.size(); i++) {
 	    threads[i] = std::thread([args](){
 		auto start = TIME();

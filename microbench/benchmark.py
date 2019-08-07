@@ -12,6 +12,7 @@ def memory(args):
     params = dict()
     params["-s"] = args.run_for
     params["variable"] = "-m"
+    params["-b"] = args.type
     params["-t"] = 1
     for t in range(step, memory + 1, step):
         params["-m"] = t
@@ -22,6 +23,7 @@ def threads(args):
     step = int( args.max_threads / args.num_steps)
     params = dict()
     params["-s"] = args.run_for
+    params["-b"] = args.type
     params["variable"] = "-t"
     for t in range(step, args.max_threads + 1, step):
         params["-t"] = t
@@ -34,6 +36,7 @@ def memobj(args):
     params["-s"] = args.run_for
     params["variable"] = "-o"
     params["-t"] = 1
+    params["-b"] = args.type
     memory = args.max_mem * GB
     for t in range(step, args.num_obj + 1, step):
         params["-o"] = t
@@ -47,6 +50,7 @@ def files(args):
     params["-s"] = args.run_for
     params["variable"] = "-f"
     params["-t"] = 1
+    params["-b"] = args.type
     for t in range(step, args.num_files + 1, step):
         params["-f"] = t
         run_benchmark("file_bench", args, params)
