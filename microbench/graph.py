@@ -23,24 +23,26 @@ class Figure:
         else:
             dimensions = (1, len(self.graphs))
 
-        plt.figure(self.figure, figsize=(8,8))
+        f = plt.figure(self.figure, figsize=(8,8))
         plt.clf()
         index = 1
-        f, axs = plt.subplots(dimensions[0], dimensions[1], sharey=True);
+        axs = f.subplots(dimensions[0], dimensions[1], sharey=True);
         translate = dict()
         index = 0;
-        for row in axs:
-            for x in row:
-                translate[index] = x
+        for i, row in enumerate(axs):
+            for t, x in enumerate(row):
+                translate[index] = (i, t)
                 index += 1
 
         for i, graph in enumerate(self.graphs):
+            (x, y) = translate[i];
             for k, v in graph.ycords.items():
-                translate[i].errorbar(graph.xcords, v,
-                        yerr=graph.stddev[k])
-            plt.xlabel(graph.xlabel)
-            plt.ylabel(graph.ylabel)
-            index += 1
+                axs[x, y].errorbar(graph.xcords, v,
+                        yerr=graph.stddev[k], label=graph.header[(2 * k) + 1])
+                index += 1
+            axs[x, y].set_xlabel(graph.xlabel)
+            axs[x, y].set_ylabel(graph.ylabel)
+            axs[x, y].legend()
 
     def show(self):
         self.fig()
@@ -51,8 +53,8 @@ class LineGraph:
     def __init__(self, csv_path, xlabel, ylabel, title):
         with open(csv_path) as f:
             vals = csv.reader(f, delimiter=',')
-            header = next(vals, None)
-            num_lines = len(header) - 1
+            self.header = next(vals, None)
+            num_lines = len(self.header) - 1
             if (num_lines % 2) != 0:
                 print("Improper CSV formating for {}".format(csv_path))
                 return;
