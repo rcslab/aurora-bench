@@ -78,18 +78,29 @@ def create_summary(data):
     for i, (bench, vals) in enumerate(data.items()):
         benchmarks[bench] = [] 
         for label in labels:
-            val = [ x[3] for x in data[bench][label] if x[0] == "Summary" ][0]
+            val = [ x[3] for x in vals[label] if x[0] == "Summary" ][0]
             benchmarks[bench].append(val)
 
     return labels, benchmarks
 
+def create_specific(data, bench, index):
+    labels = [ x[0] for x in data["sls"][bench] ]
+    benchmarks = {}
+    # Pop the summary off
+    labels.pop()
+    
+    for (key, value) in data.items():
+        benchmarks[key] = [ t[index] for t in value[bench] if t[0] != \
+                "Summary"]
 
-def create_histogram(labels, values):
+    return labels, benchmarks
+
+
+
+def create_histogram(name, labels, values):
     x = np.arange(len(labels))
     width = 0.10
     fig, ax = plt.subplots()
-    # print(labels)
-    # print(values)
     start = x - ((len(values.keys())/2) * width);
     for k, v in values.items():
         vals = [ float(s) for s in v ]
@@ -102,10 +113,13 @@ def create_histogram(labels, values):
     ax.legend()
 
     fig.tight_layout()
-    plt.savefig('check.svg')
+    plt.savefig(name)
+    plt.clf()
 
 
 
 data = extract_benchmarks("data")
 labels, values = create_summary(data)
-create_histogram(labels, values)
+create_histogram("summary.svg", labels, values)
+labels, values = create_specific(data, "fileserver", 4)
+create_histogram("fileserver.svg", labels, values)
