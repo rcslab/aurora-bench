@@ -21,3 +21,7 @@ slsctl
 
 *.aof
 *.rdb
+
+artifact_evaluation/dependencies/*
+artifact_evaluation/graphs/*
+artifact_evaluation/redis.conf
