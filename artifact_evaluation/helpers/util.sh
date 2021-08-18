@@ -1,10 +1,12 @@
 #!/bin/sh
 setup_script()
 {
+	. aurora.config
 	. $SRCROOT/tests/aurora
 	. aurora.config
 	MAX_ITER=1
 }
+
 setup_aurora()
 {
 	aurteardown #1>/dev/null 2>/dev/null
@@ -49,6 +51,26 @@ teardown_ffs()
 {
     umount /testmnt
     gstripe destroy st0
+}
+
+setup_zfs_rocksdb()
+{
+	set -- $STRIPEDISKS
+	ZFS_DISKS=""
+	while [ -n "$1" ];
+	do
+	   ZFS_DISKS="/dev/$1 ${ZFS_DISKS}"
+	   shift
+	done
+
+	zpool create benchmark $ZFS_DISKS
+	zfs create benchmark/testmnt
+
+	zfs set mountpoint=/testmnt benchmark/testmnt
+	zfs set recordsize=64k benchmark
+
+	zfs set sync=standard benchmark
+	zfs set checksum=off benchmark/testmnt
 }
 
 setup_zfs()

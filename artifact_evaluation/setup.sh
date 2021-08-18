@@ -202,16 +202,16 @@ chmod a+rw $OUT 2> /dev/null
 check_dependencies
 
 # Fetches and unpacks ycsb artifact
-#setup_ycsb > /dev/null
+setup_ycsb > /dev/null
 
 # Fetches and compiles filebench
-#setup_filebench > /dev/null
+setup_filebench > /dev/null
 
 # Sets up the python library used to create graphs
-#setup_prog > /dev/null
+setup_prog > /dev/null
 
 # Fetches and compiled mutilate on host and all clients
-#setup_mutilate  > /dev/null
+setup_mutilate  > /dev/null
 
 setup_rocksdb > /dev/null
 

@@ -54,7 +54,7 @@ run_base_wal()
 	if check_completed "$DIR/$ITER.out"; then
 	    continue
 	fi
-	setup_zfs >> $LOG 2>> $LOG
+	setup_zfs_rocksdb >> $LOG 2>> $LOG
 	db_bench baseline --sync=true --disable_wal=false > /tmp/out
 	teardown_zfs >> $LOG 2>> $LOG
 	mv /tmp/out $DIR/$ITER.out
@@ -72,7 +72,7 @@ run_base_nowal()
 	    continue
 	fi
 
-	setup_zfs >> $LOG
+	setup_zfs_rocksdb >> $LOG 2>> $LOG
 	db_bench baseline --sync=false --disable_wal=true > /tmp/out
 	teardown_zfs
 	mv /tmp/out $DIR/$ITER.out
@@ -84,13 +84,17 @@ stripe_setup_wal()
     gstripe load
     gstripe stop "$STRIPENAME"
     gstripe stop "st1"
+
+    # Sets up the two stripes needed for the RocksDB Aurora benchmark 
+    # STRIPENAME is the default stripe used by all benchmarks which is used by the SLS and SLOS
+    # The secondary stripe "st1" is used for the persistent storage for the WAL.
+    # During operation operatiosn are written to the WAL (which is on st1), when this wal fills, Aurora
     gstripe create -s "$STRIPESIZE" -v "$STRIPENAME" $ROCKS_STRIPE1
     gstripe create -s "$STRIPESIZE" -v "st1" $ROCKS_STRIPE2
     DISK="stripe/$STRIPENAME"
     DISKPATH="/dev/$DISK"
 
     aursetup
-
 }
 
 stripe_teardown_wal()
@@ -113,9 +117,10 @@ run_aurora_nowal()
 	    continue
 	fi
 
+	rm /tmp/out
 	#setup_aurora >> $LOG 2>> $LOG
 	stripe_setup_wal
-	$AURORACTL partadd -o 1 -d -t 100 -b "slos" >> $LOG 2>> $LOG
+	$AURORACTL partadd -o 1 -d -t 10 -b "slos" >> $LOG 2>> $LOG
 
 	db_bench baseline --sync=false --disable_wal=true > /tmp/out &
 	sleep 2

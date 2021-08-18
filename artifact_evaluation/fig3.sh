@@ -25,7 +25,7 @@ run_aurorafs()
 		    DIR=$SUPER/$FILE
 		    mkdir -p $DIR
 
-		    for ITER in `seq $START $MAX_ITER`
+		    for ITER in `seq 0 $MAX_ITER`
 		    do
 			    if check_completed $DIR/$ITER.out; then
 				continue
@@ -103,7 +103,7 @@ run_zfs()
 		    DIR=$SUPER/$FILE
 		    mkdir -p $DIR
 
-		    for ITER in `seq $START $MAX_ITER`
+		    for ITER in `seq 0 $MAX_ITER`
 		    do
 			    if check_completed $DIR/$ITER.out; then
 				continue
