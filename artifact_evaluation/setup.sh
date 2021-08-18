@@ -25,14 +25,14 @@ setup_filebench()
 setup_mutilate()
 {
     # Setup filebench
-    git clone https://github.com/krhancoc/mutilate.git dependencies/mutilate
+    git clone https://github.com/rcslab/mutilate.git dependencies/mutilate
     cd dependencies/mutilate
 
     set -- $EXTERNAL_HOSTS
     while [ -n "$1" ];
     do
 	echo "[Aurora] Setting up Client $1"
-	ssh $1 "cd $AURORA_CLIENT_DIR; git clone https://github.com/krhancoc/mutilate.git; cd mutilate; scons" > /dev/null 2> /dev/null
+	ssh $1 "cd $AURORA_CLIENT_DIR; git clone https://github.com/rcslab/mutilate.git; cd mutilate; scons" > /dev/null 2> /dev/null
 	shift
     done
 
