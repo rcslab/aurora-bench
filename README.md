@@ -20,7 +20,7 @@ Requirements
  * Client require the installation of ssh keys for the root user on the Aurora 
    host to allow password-less connection
 
-Please see [[https://www.freebsd.org/releases/12.1R/hardware/]] for hardware 
+Please see https://www.freebsd.org/releases/12.1R/hardware/ for hardware 
 compatibility.  The paper version of Aurora is based off of FreeBSD 12.1 
 released in November 2019 so newer hardware may not be supported.
 
@@ -55,19 +55,19 @@ Once booted you can skip to machine configuration section below.
 
 Install an already patched FreeBSD image from an iso or USB installer.
 
-    cdrom iso: [[https://rcs.uwaterloo.ca/aurora/installer.iso.xz]]
-    USB image: [[https://rcs.uwaterloo.ca/aurora/installer.dd.xz]]
+ * cdrom iso: https://rcs.uwaterloo.ca/aurora/installer.iso.xz
+ * USB image: https://rcs.uwaterloo.ca/aurora/installer.dd.xz
 
 You can now reboot and proceed with the instructions in README.md in the main 
-aurora repository at [[https://github.com/rcslab/aurora]].  Once those 
-instructions are complete you can resume below at the dependencies section.
+aurora repository at https://github.com/rcslab/aurora.  Once those instructions 
+are complete you can resume below at the dependencies section.
 
 3. Setting up Aurora from source
 
 Start with a stock FreeBSD 12.1 installation.  The media and instructions are 
 available at:
 
-    [[https://www.freebsd.org/releases/12.1R/announce/]]
+ * https://www.freebsd.org/releases/12.1R/announce/
 
 Once installed you will overwrite the kernel with a patched kernel and 
 userspace headers overwriting the original image.
@@ -82,8 +82,8 @@ userspace headers overwriting the original image.
 ```
 
 You can now reboot and proceed with the instructions in README.md in the main 
-aurora repository at [[https://github.com/rcslab/aurora]].  Once those 
-instructions are complete you can resume these instructions below.
+aurora repository at https://github.com/rcslab/aurora.  Once those instructions 
+are complete you can resume these instructions below.
 
 Dependencies for Aurora Host
 ----------------------------
@@ -94,8 +94,11 @@ Dependencies for Aurora Host
  * memcached
 
 For newly installed machines the official package repository is no longer 
-supported.  We've provided a new package repository at: 
-[[https://rcs.uwaterloo.ca/aurora/Aurora:amd64:12.1/]]
+supported.  We've provided a new package repository at:
+https://rcs.uwaterloo.ca/aurora/Aurora:amd64:12.1/
+
+Modify `/etc/pkg/FreeBSD.conf` to point to this repository, remove the url type 
+if it is set, and set the `signature_type` to `none`.
 
 ```
 # pkg install openjdk11
@@ -116,8 +119,8 @@ and compiling of the various benchmarks.
 
 More information on these benchmarks can be found in their specific 
 repositories:
-* [mutilate](https://github.com/rcslab/mutilate)
-* [filebench](https://github.com/rcslab/filebench)
+ * [Mutilate](https://github.com/rcslab/mutilate)
+ * [Filebench](https://github.com/rcslab/filebench)
 
 System Configuration
 --------------------
@@ -136,14 +139,13 @@ If your NIC is not present you need to load the NIC driver corresponding to
 your NIC in the hardware compatibility list.  You can look at the hardware 
 present on your machine using `pciconf -lv`.
 
-    Hardware Notes [[https://www.freebsd.org/releases/12.1R/hardware/]]
+ * [Hardware Notes](https://www.freebsd.org/releases/12.1R/hardware/)
 
 Below is a table of common network interface drivers that may need to be 
 loaded, but for more obscure hardware please refer to the hardware list above.
 
-+-----------+---------------------------+
 | Driver    | 10 Gbps NICs              |
-+-----------+---------------------------+
+|-----------|---------------------------|
 | mlx4en    | Mellanox ConnectX-3       |
 | mlx5en    | Mellanox ConnectX-4/5     |
 | if_cxgbe  | Chelsio T4/T5/T6          |
@@ -151,7 +153,6 @@ loaded, but for more obscure hardware please refer to the hardware list above.
 | if_ixl    | Intel 700 Series          |
 | sfxge     | Solarflare                |
 | if_lio    | Cavium LiquidIO           |
-+-----------+---------------------------+
 
 You can load the driver using `kldload <drivername>`.
 
@@ -232,8 +233,8 @@ Additional Problems
 -------------------
 
 We are happy to provide support in setting up or troubleshooting our system in 
-any way.  For general FreeBSD configuration questions please refer to FreeBSD 
-handbook [[https://docs.freebsd.org/en/books/handbook/]] or man pages.
+any way.  For general FreeBSD configuration questions please refer to
+[FreeBSD handbook](https://docs.freebsd.org/en/books/handbook/) or man pages.
 
 If you run into any crashes please report them as we are continuously improving 
 the system stability.  Please be patient if you do run into any issues this is 
