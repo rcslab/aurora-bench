@@ -71,12 +71,11 @@ setup_prog()
 check_library()
 {
     O1=`ls /usr/local/lib | grep $1`
-    O3=`ls /usr/lib | grep $1`
+    O2=`ls /usr/lib | grep $1`
     O3=`ls /lib | grep $1`
-    if [[ $01 ]] && [[ $O2 ]] && [[ $O3 ]]; then
+    echo "$O1 $O2 $O3"
+    if [ -z $O1 ] && [ -z $O2 ] && [ -z $O3 ]; then
 	echo "Libary $1 not present locally, please install"
-    else:
-	return
     fi
 
 }
@@ -86,10 +85,8 @@ check_remote_library()
     O1=`ssh $2 ls /usr/local/lib | grep $1`
     O3=`ssh $2 ls /usr/lib | grep $1`
     O3=`ssh $2 ls /lib | grep $1`
-    if [[ $01 ]] && [[ $O2 ]] && [[ $O3 ]]; then
-	echo "Libary $1 not present locally, please install"
-    else:
-	return
+    if [ -z $O1 ] && [ -z $O2 ] && [ -z $O3 ]; then
+	echo "Libary $1 not present on remote $2, please install"
     fi
 }
 
@@ -152,6 +149,7 @@ check_dependencies()
 
     # Dependencies for memcached
     check_binary "scons"
+    check_binary "gengetopt"
     check_binary "memcached"
     # Depedencies for clients
 
@@ -160,6 +158,7 @@ check_dependencies()
     do
 	check_remote_binary "scons" $1
 	check_remote_library "libzmq.so.1" $1 # Required to compile mutilate
+	check_remote_binary "gengetopt" $1 # Required to compile mutilate
 	check_remote_binary "javac" $1 # Required for redis to run ycsb
 	shift
     done

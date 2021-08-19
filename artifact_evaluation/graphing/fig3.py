@@ -36,9 +36,8 @@ def parse(metrics, path):
                 break
     if result is None:
         print("[Error] {} did not execute or pre-emptively shut down, please re-run fig3.sh".format(path))
-        print(open(path).read())
+        #print(open(path).read())
         os.unlink(path)
-        exit(0)
     else:
         t = result.group(0).split()
         metrics.add_metric("operations", get_num(t[OP]))

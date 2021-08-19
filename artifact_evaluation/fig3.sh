@@ -5,6 +5,11 @@ echo "[Aurora] Figure 3"
 . aurora.config
 
 BENCHMARKS="../fs-workloads/"
+if [ "$MODE" = "VM" ]; then
+MAX_ITER=0
+else
+MAX_ITER=2
+fi
 
 run_aurorafs()
 {
@@ -33,11 +38,12 @@ run_aurorafs()
 			    FINAL_OUT="$ITER.out"
 			    echo "[Aurora] Running $folder:$FILE, Iteration $ITER"
 			    echo "[Aurora] Running $folder:$FILE, Iteration $ITER" >> $LOG
-			    setup_aurora  >> $LOG 2>> $LOG
+			    setup_aurora $MIN_FREQ >> $LOG 2>> $LOG
 
 			    timeout 60s $FILEBENCH -f $entry > /tmp/out 2>> $LOG
 			    teardown_aurora >> $LOG 2>> $LOG
 			    mv /tmp/out $DIR/$FINAL_OUT
+			    fsync $DIR/$FINAL_OUT
 		    done
 	    done
 	done
@@ -78,6 +84,7 @@ run_ffs()
 
 			    # This is so we catch if it crashes
 			    mv /tmp/out $DIR/$FINAL_OUT
+			    fsync $DIR/$FINAL_OUT
 		    done
 	    done
 	done
@@ -115,6 +122,7 @@ run_zfs()
 			    timeout 60s $FILEBENCH -f $entry > /tmp/out 2>> $LOG
 			    teardown_zfs $CHECKSUM  >> $LOG 2>> $LOG
 			    mv /tmp/out $DIR/$FINAL_OUT
+			    fsync $DIR/$FINAL_OUT
 		    done
 	    done
 	done

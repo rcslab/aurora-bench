@@ -5,8 +5,12 @@ import os
 import re
 
 ROOT_DIR=os.environ["OUT"]
+MODE=os.environ["MODE"]
 
-fs = ["10", "20", "30", "40", "50", "60", "70", "80", "90", "100"]
+if MODE == "VM":
+    fs = ["100", "200", "300", "400", "500", "600", "700", "800", "900", "1000"]
+else:
+    fs = ["10", "20", "30", "40", "50", "60", "70", "80", "90", "100"]
 
 def get_num(val):
     try:
@@ -29,9 +33,8 @@ def parse_redis(metrics, path):
                 result = line
                 break
         if result is None:
-            print("[Error] {} did not execute or pre-emptively shut down, please re-run fig4.sh".format(path))
+            print("[Error] {} did not execute or pre-emptively shut down, please re-run fig4a.sh".format(path))
             os.unlink(path)
-            exit(0)
         else:
             t = result.split()
             metrics.add_metric("throughput", get_num(t[-1]))
@@ -45,14 +48,12 @@ for x in fs:
 const_base = os.path.join(base_path, "base")
 base = sb.plan_parse(const_base, const_base, parse_redis)
 
-x=[x for x in range(10, 110, 10)]
+x=[ int(x) for x in fs ]
 l1 = g.Line(execs, "throughput", x=x)
 l2 = g.ConstLine(base, "Base", "throughput")
 fig4a = sb.plan_graph(g.LineGraph([l1, l2], std=True,
     out="fig4a.svg",
     formatters=[ 
         f.set_size(10, 5),
-        f.set_yrange(0, 60000)
     ]
-
-    ))
+))

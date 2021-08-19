@@ -12,9 +12,13 @@ MEMCACHED_CONNECTIONS=32768
 MUTILATE_THREADS=12
 MUTILATE_CONNECTIONS=12
 MUTILATE_WARMUP=5
-MUTILATE_QPS=1000
-MUTILATE_TARGET_QPS=200000
 MUTILATE_TIME=15
+
+if [ "$MODE" = "VM" ]; then
+MAX_ITER=2
+else
+MAX_ITER=9
+fi
 
 run_memcached()
 {
@@ -28,8 +32,8 @@ run_memcached()
     fi
 
     if [ "$SLS" = "on" ]; then
-	setup_aurora >> $LOG 2>> $LOG
-	$AURORACTL partadd -o 1 -d -t $FREQ -b "slos" >> $LOG 2>> $LOG
+	setup_aurora $FREQ >> $LOG 2>> $LOG
+	$AURORACTL partadd -o 1 -d -t $FREQ -b $BACKEND >> $LOG 2>> $LOG
     fi
 
     USER="-u root" 
@@ -45,6 +49,9 @@ run_memcached()
 	pid=`pidof memcached`
 	echo "[Aurora] Attaching memcached Server to Aurora: $pid"
 	$AURORACTL attach -o 1 -p $pid >> $LOG 2>> $LOG
+    else
+	pid=`pidof memcached`
+	echo "[Aurora] memcached Server at: $pid"
     fi
 
     echo "[Aurora] Loading data to memcached server at $ADDRESS:$MEMCACHED_PORT"
@@ -107,31 +114,31 @@ run_memcached()
 run_base()
 {
     echo "[Aurora] Running memcached base"
-    mkdir -p $OUT/memcached/base
+    mkdir -p $OUT/memcached/base 2> /dev/null
 
     for ITER in `seq 0 $MAX_ITER`
     do
 	if check_completed $OUT/memcached/base/$ITER.out; then
 	    continue
 	fi
-	run_memcached "base" $ITER
+	run_memcached "base" $ITER >> $LOG 2>> $LOG
     done
-    echo "[Aurora] Done running redis base"
+    echo "[Aurora] Done running memcached base"
 
 }
 
 run_aurora()
 {
-    for f in 10 20 30 40 50 60 70 80 90 100
+    for f in `seq $MIN_FREQ $FREQ_STEP $MAX_FREQ`
     do
 	echo "[Aurora] Running memcached with Aurora: Checkpoint period $f"
-	mkdir -p $OUT/memcached/$f
+	mkdir -p $OUT/memcached/$f 2> /dev/null
 	for ITER in `seq 0 $MAX_ITER`
 	do
 	    if check_completed $OUT/memcached/$f/$ITER.out; then
 		continue
 	    fi
-	    run_memcached "$f" $ITER $f
+	    run_memcached "$f" $ITER $f >> $LOG 2>> $LOG
 	done
 	echo "[Aurora] Done running memcached with Aurora"
     done
@@ -143,12 +150,13 @@ setup_script
 
 clear_log
 
-run_base >> $LOG 2>> $LOG
+run_base
 
-run_aurora >> $LOG 2>> $LOG
+run_aurora 
 
 PYTHONPATH=$PYTHONPATH:$(pwd)/dependencies/progbg
 export PYTHONPATH
 export OUT
+export MODE
 python3.7 -m progbg graphing/fig4b.py
 

@@ -4,6 +4,12 @@ import progbg.formatters as f
 import os
 
 ROOT_DIR=os.environ["OUT"]
+MODE=os.environ["MODE"]
+if MODE == "VM":
+    fs = ["100", "200", "300", "400", "500", "600", "700", "800", "900", "1000"]
+else:
+    fs = ["10", "20", "30", "40", "50", "60", "70", "80", "90", "100"]
+
 
 def get_num(val):
     try:
@@ -34,7 +40,6 @@ def parse_memcached(metrics, path):
             metrics.add_metric("throughput", get_num(t[3]))
 
 
-fs = ["10", "20", "30", "40", "50", "60", "70", "80", "90", "100"]
 base_path = os.path.join(ROOT_DIR, "memcached")
 execs = []
 for x in fs:
@@ -44,7 +49,7 @@ for x in fs:
 const_base = os.path.join(base_path, "base")
 base = sb.plan_parse(const_base, const_base, parse_memcached)
 
-x=[x for x in range(10, 110, 10)]
+x=[ int(x) for x in fs ]
 l1 = g.Line(execs, "throughput", x=x)
 l2 = g.ConstLine(base, "Base", "throughput")
 fig4b = sb.plan_graph(

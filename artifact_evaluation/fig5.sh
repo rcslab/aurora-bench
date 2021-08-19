@@ -4,6 +4,7 @@
 setup_script
 
 AURORACTL=$SRCROOT/tools/slsctl/slsctl
+MAX_ITER=3
 
 db_bench() {
     cd dependencies/rocksdb
@@ -58,6 +59,7 @@ run_base_wal()
 	db_bench baseline --sync=true --disable_wal=false > /tmp/out
 	teardown_zfs >> $LOG 2>> $LOG
 	mv /tmp/out $DIR/$ITER.out
+	fsync $DIR/$ITER.out
     done
 }
 
@@ -76,6 +78,7 @@ run_base_nowal()
 	db_bench baseline --sync=false --disable_wal=true > /tmp/out
 	teardown_zfs
 	mv /tmp/out $DIR/$ITER.out
+	fsync $DIR/$ITER.out
     done
 }
 
@@ -95,6 +98,12 @@ stripe_setup_wal()
     DISKPATH="/dev/$DISK"
 
     aursetup
+    if [ -z "$1" ]; then
+	    sysctl aurora_slos.checkpointtime=$1
+    else
+	    sysctl aurora_slos.checkpointtime=10
+    fi
+
 }
 
 stripe_teardown_wal()
@@ -118,9 +127,8 @@ run_aurora_nowal()
 	fi
 
 	rm /tmp/out
-	#setup_aurora >> $LOG 2>> $LOG
-	stripe_setup_wal
-	$AURORACTL partadd -o 1 -d -t 10 -b "slos" >> $LOG 2>> $LOG
+	stripe_setup_wal $MIN_FREQ
+	$AURORACTL partadd -o 1 -d -t $MIN_FREQ -b $BACKEND >> $LOG 2>> $LOG
 
 	db_bench baseline --sync=false --disable_wal=true > /tmp/out &
 	sleep 2
@@ -133,8 +141,8 @@ run_aurora_nowal()
 
 	stripe_teardown_wal
 
-	#teardown_aurora >> $LOG 2>> $LOG
 	mv /tmp/out $DIR/$ITER.out
+	fsync $DIR/$ITER.out
     done
 }
 
@@ -150,7 +158,7 @@ run_aurora_wal()
 	fi
 
 	# We need custom stripes for the WAL as we use a seperate stripe to directly write to for the WAL
-	stripe_setup_wal
+	stripe_setup_wal $MAX_FREQ
 
 	db_bench sls --sync=true --disable_wal=false > /tmp/out
 
@@ -158,6 +166,7 @@ run_aurora_wal()
 
 	teardown_aurora >> $LOG 2>> $LOG
 	mv /tmp/out $DIR/$ITER.out
+	fsync $DIR/$ITER.out
     done
 }
 

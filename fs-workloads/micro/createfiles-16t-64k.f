@@ -46,6 +46,6 @@ define process name=filecreate,instances=1
 
 }
 
-run 10
+run 30
 
 echo  "Createfiles Version 3.0 personality successfully loaded"

@@ -5,21 +5,67 @@ setup_script()
 	. $SRCROOT/tests/aurora
 	. aurora.config
 	MAX_ITER=1
+	if [ "$MODE" = "VM" ]; then
+	    echo "[Aurora] Running Benchmark in VM Mode"
+	    # Freqency of checkpoint max and mins
+	    MAX_FREQ=1000
+	    MIN_FREQ=100
+	    FREQ_STEP=100
+	    SETUP_FUNC="createmd"
+	    TEARDOWN_FUNC="destroymd"
+	    BACKEND="memory"
+	    # YCSB Benchmark Values
+	    REDIS_OP_COUNT=100000
+	    REDIS_RECORD_COUNT=10000
+
+	    # Memcached Benchmark Values
+	    MUTILATE_QPS=100
+	    MUTILATE_TARGET_QPS=20000
+	    MUTILATE_TIME=10
+
+	    # RocksDB Benchmark Values
+	else
+	    echo "[Aurora] Running Benchmark in Default Mode"
+	    # Freqency of checkpoint max and mins
+	    MAX_FREQ=100
+	    MIN_FREQ=10
+	    FREQ_STEP=10
+	    SETUP_FUNC="aurstripe"
+	    TEARDOWN_FUNC="aurunstripe"
+	    BACKEND="slos"
+
+	    # YCSB Benchmark Values
+	    REDIS_OP_COUNT=100000
+	    REDIS_RECORD_COUNT=10000
+
+	    # Memcached Benchmark Values
+	    MUTILATE_QPS=1000
+	    MUTILATE_TARGET_QPS=200000
+	    MUTILATE_TIME=15
+
+	    # RocksDB Benchmark Values
+	fi
 }
 
 setup_aurora()
 {
-	aurteardown #1>/dev/null 2>/dev/null
-	aurstripe #1> /dev/null 2> /dev/null
-	#createmd
+	aurteardown > /dev/null 2>/dev/null
+	$SETUP_FUNC  > /dev/null 2> /dev/null
+
+	if [ -z "$1" ]; then
+		sysctl aurora_slos.checkpointtime=$1
+	else
+		sysctl aurora_slos.checkpointtime=10
+	fi
 	aursetup
 }
 
 teardown_aurora()
 {
-	aurteardown #>/dev/null 2>/dev/null
-	aurunstripe
-	#destroymd
+	aurteardown > /dev/null 2> /dev/null
+	# We pass in DISKPATH cause destroymd requires it but aurunstripe does not require
+	# any arguments so does not use it.
+	$TEARDOWN_FUNC $DISKPATH
 }
 
 clear_log()
@@ -42,15 +88,26 @@ check_completed()
 
 setup_ffs()
 {
-    gstripe create -s 65536 -v st0 $STRIPEDISKS
-    newfs -j -S 4096 -b 65536 /dev/stripe/st0
-    mount /dev/stripe/st0 /testmnt
+    if [ "$MODE" = "VM" ]; then
+	echo "Create MD"
+	createmd
+	newfs -j -S 4096 -b 65536 $DISKPATH
+	mount $DISKPATH /testmnt
+    else
+	gstripe create -s 65536 -v st0 $STRIPEDISKS
+	newfs -j -S 4096 -b 65536 /dev/stripe/st0
+	mount /dev/stripe/st0 /testmnt
+    fi
 }
 
 teardown_ffs()
 {
-    umount /testmnt
-    gstripe destroy st0
+    umount -f /testmnt
+    if [ "$MODE" = "VM" ]; then
+	destroymd $DISKPATH
+    else
+	gstripe destroy st0
+    fi
 }
 
 setup_zfs_rocksdb()
@@ -91,7 +148,7 @@ setup_zfs()
 	zfs set compression=lz4 benchmark
 	zfs set recordsize=64k benchmark
 
-	zfs set sync=disabled benchmark
+	zfs set sync=standard benchmark
 	if [ "$CHECKSUM" = "on" ]
 	then
 	    zfs set checksum=on benchmark/testmnt

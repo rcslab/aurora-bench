@@ -5,8 +5,12 @@
 AURORACTL=$SRCROOT/tools/slsctl/slsctl
 REDIS_PORT=9785
 REDIS_THREADS=12
-REDIS_OP_COUNT=1000000
-REDIS_RECORD_COUNT=100000
+
+if [ "$MODE" = "VM" ]; then
+MAX_ITER=2
+else
+MAX_ITER=9
+fi
 
 run_redis_ycsb()
 {
@@ -19,7 +23,7 @@ run_redis_ycsb()
 	SLS="off"
     fi
 
-    kill -TERM `pidof redis-server`
+    kill -TERM `pidof redis-server` 2> /dev/null > /dev/null
 
     YCSB_ROOT=dependencies/ycsb-0.17.0
     YCSB=$YCSB_ROOT/bin/ycsb.sh
@@ -28,8 +32,8 @@ run_redis_ycsb()
     echo "[Aurora] Starting Redis Server at $AURORA_REDIS_URL" >> $LOG
 
     if [ "$SLS" = "on" ]; then
-	setup_aurora >> $LOG 2>> $LOG
-	$AURORACTL partadd -o 1 -d -t $FREQ -b "slos" >> $LOG 2>> $LOG
+	setup_aurora $FREQ >> $LOG 2>> $LOG
+	$AURORACTL partadd -o 1 -d -t $FREQ -b $BACKEND >> $LOG 2>> $LOG
     else
 	# Setup the database on the stripe as well - use ffs
 	setup_ffs >> $LOG 2>> $LOG
@@ -64,8 +68,7 @@ run_redis_ycsb()
     set -- $EXTERNAL_HOSTS
     while [ -n "$1" ];
     do
-	echo $1
-	ssh $1 "$YCSB_CLIENT run redis -P $WORKLOAD $SERVER $PORT $PASS $THREADS $OPS" > /tmp/$1.log &
+	ssh $1 "$YCSB_CLIENT run redis -P $WORKLOAD $SERVER $PORT $PASS $THREADS $OPS" > /tmp/$1.log 2> /dev/null &
 	shift
     done
 
@@ -80,8 +83,6 @@ run_redis_ycsb()
 	teardown_ffs >> $LOG 2>> $LOG
     fi
 
-
-
     mkdir -p $OUT/redis/$CHILD_DIR
 
     touch /tmp/out
@@ -92,13 +93,14 @@ run_redis_ycsb()
 	cat /tmp/$1.log >> /tmp/out
 
 	mv /tmp/out $OUT/redis/$CHILD_DIR/$ITER.out
+	fsync $OUT/redis/$CHILD_DIR/$ITER.out
 
 	# Just making sure we dont accidently use this file somewhere although it shouldn't
 	rm /tmp/$1.log
 	shift
     done
 
-    rm /tmp/out
+    rm /tmp/out 2> /dev/null > /dev/null
 
 }
 
@@ -119,7 +121,7 @@ run_base()
 run_aurora()
 {
     echo "[Aurora] Running Redis Aurora"
-    for f in 10 20 30 40 50 60 70 80 90 100
+    for f in `seq $MIN_FREQ $FREQ_STEP $MAX_FREQ`
     do
 	echo "[Aurora] Running redis with Aurora: Checkpoint period $f"
 	for ITER in `seq 0 $MAX_ITER`
@@ -151,5 +153,5 @@ run_aurora
 PYTHONPATH=$PYTHONPATH:$(pwd)/dependencies/progbg
 export PYTHONPATH
 export OUT
-
+export MODE
 python3.7 -m progbg graphing/fig4a.py
