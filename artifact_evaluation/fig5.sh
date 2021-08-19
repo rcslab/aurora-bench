@@ -4,7 +4,12 @@
 setup_script
 
 AURORACTL=$SRCROOT/tools/slsctl/slsctl
-MAX_ITER=3
+
+if [ "$MODE" = "VM" ]; then
+MAX_ITER=0
+else
+MAX_ITER=2
+fi
 
 db_bench() {
     cd dependencies/rocksdb
@@ -32,10 +37,10 @@ db_bench() {
 	--sine_b=0.000073 \
 	--sine_d=4500 \
 	--perf_level=2 \
-	--num=50000000 \
+	--num=$ROCKSDB_NUM \
 	--key_size=48 \
 	--db=/testmnt/tmp-db \
-	--duration=60 \
+	--duration=$ROCKSDB_DUR \
 	--histogram=1 \
 	--write_buffer_size=$((16 << 30)) \
 	--disable_auto_compactions \
@@ -84,6 +89,8 @@ run_base_nowal()
 
 stripe_setup_wal()
 {
+    CKPT_FREQ=$1
+
     gstripe load
     gstripe stop "$STRIPENAME"
     gstripe stop "st1"
@@ -93,15 +100,24 @@ stripe_setup_wal()
     # The secondary stripe "st1" is used for the persistent storage for the WAL.
     # During operation operatiosn are written to the WAL (which is on st1), when this wal fills, Aurora
     gstripe create -s "$STRIPESIZE" -v "$STRIPENAME" $ROCKS_STRIPE1
-    gstripe create -s "$STRIPESIZE" -v "st1" $ROCKS_STRIPE2
+    set -- $ROCKS_STRIPE2
+    if [ $# -gt 1 ]; then
+	echo "$ROCKS_STRIPE2 $# $1"
+	gstripe create -s "$STRIPESIZE" -v "st1" $ROCKS_STRIPE2
+	ln -s /dev/stripe/st1 /dev/wal
+    else
+	ln -s /dev/$ROCKS_STRIPE2 /dev/wal
+    fi
+
+
     DISK="stripe/$STRIPENAME"
     DISKPATH="/dev/$DISK"
 
     aursetup
     if [ -z "$1" ]; then
-	    sysctl aurora_slos.checkpointtime=$1
+	    sysctl aurora_slos.checkpointtime=$CKPT_FREQ
     else
-	    sysctl aurora_slos.checkpointtime=10
+	    sysctl aurora_slos.checkpointtime=$MAX_FREQ
     fi
 
 }
@@ -112,6 +128,7 @@ stripe_teardown_wal()
 
     aurunstripe
     gstripe destroy "st1"
+    rm /dev/wal
 }
 
 run_aurora_nowal()
@@ -138,6 +155,7 @@ run_aurora_nowal()
 	$AURORACTL checkpoint -o 1 -r >> $LOG 2>> $LOG
 
 	wait
+	sleep 2
 
 	stripe_teardown_wal
 
@@ -154,13 +172,16 @@ run_aurora_wal()
     for ITER in `seq 0 $MAX_ITER`
     do
 	if check_completed "$DIR/$ITER.out"; then
-	    continue
+		continue
 	fi
 
 	# We need custom stripes for the WAL as we use a seperate stripe to directly write to for the WAL
 	stripe_setup_wal $MAX_FREQ
 
 	db_bench sls --sync=true --disable_wal=false > /tmp/out
+
+	# Wait for the final checkpoint to be done
+	sleep 3
 
 	stripe_teardown_wal
 

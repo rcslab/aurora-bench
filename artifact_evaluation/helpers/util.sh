@@ -24,6 +24,8 @@ setup_script()
 	    MUTILATE_TIME=10
 
 	    # RocksDB Benchmark Values
+	    ROCKSDB_NUM=5000
+	    ROCKSDB_DUR=5
 	else
 	    echo "[Aurora] Running Benchmark in Default Mode"
 	    # Freqency of checkpoint max and mins
@@ -44,6 +46,8 @@ setup_script()
 	    MUTILATE_TIME=15
 
 	    # RocksDB Benchmark Values
+	    ROCKSDB_NUM=50000000
+	    ROCKSDB_DUR=60
 	fi
 }
 
@@ -62,6 +66,7 @@ setup_aurora()
 
 teardown_aurora()
 {
+	sleep 2
 	aurteardown > /dev/null 2> /dev/null
 	# We pass in DISKPATH cause destroymd requires it but aurunstripe does not require
 	# any arguments so does not use it.
