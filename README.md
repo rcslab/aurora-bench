@@ -6,16 +6,27 @@ The Aurora Single Level Store Operating System
 Authors: Emil Tsalapatis, Ryan Hancock, Tavian Barnes, Ali José Mashtizadeh
 ---------------------------------------------------------------------------
 
-We would like to thank the artifact evaluaters who are doing one of the 
-toughest jobs out there -- compiling and running academic research projects.
+We would like to thank the artifact evaluators who are doing one of the 
+toughest jobs out there!  We have done our best to make evaluating this 
+artifact painless, but it will require basic networking and operating systems 
+knowledge to configure and benchmark.
 
 Requirements
 ------------
  * A running FreeBSD 12.1 system with the Aurora patches
- * Multiple hosts to run the YCSB and mutilate benchmarks for both redis and 
-   memcached.
+ * 4xIntel 900P Optane SSD for the Aurora host
+ * 10 Gbps NICs (we tested with X722 NICs) on all machine
+ * Multiple hosts for redis/YCSB and memcached/mutilate benchmarks
  * Client require the installation of ssh keys for the root user on the Aurora 
-   host to allow password-less connection.
+   host to allow password-less connection
+
+Please see [[https://www.freebsd.org/releases/12.1R/hardware/]] for hardware 
+compatibility.  The paper version of Aurora is based off of FreeBSD 12.1 
+released in November 2019 so newer hardware may not be supported.
+
+We recommend using an Intel 700 series, Mellanox ConnectX-2/3/4/5, or Chelsio 
+T4/T5/T6 NIC.  Many other 10G NICs are supported but may require loading 
+drivers see configuration section.
 
 Setting up FreeBSD 12.1 with the Aurora Patches
 -----------------------------------------------
@@ -53,8 +64,8 @@ instructions are complete you can resume below at the dependencies section.
 
 3. Setting up Aurora from source
 
-You will need to start with a stock FreeBSD 12.1 installation.  The media and 
-instructions are available at:
+Start with a stock FreeBSD 12.1 installation.  The media and instructions are 
+available at:
 
     [[https://www.freebsd.org/releases/12.1R/announce/]]
 
@@ -103,15 +114,84 @@ Dependencies needed on Clients
 Once these dependencies are installed our setup script will handle the fetching 
 and compiling of the various benchmarks.
 
-More information on these benchmarks can be found in their specific repos:
+More information on these benchmarks can be found in their specific 
+repositories:
 * [mutilate](https://github.com/rcslab/mutilate)
 * [filebench](https://github.com/rcslab/filebench)
 
-Configuarion and Setup
+System Configuration
+--------------------
+
+Before starting you may want to configure the networking on the machine.  By 
+default popular Intel, Mellanox, and Chelsio drivers are loaded in our live USB 
+image.  Our live USB image will attempt to use DHCP on all available NICs on 
+startup.
+
+You can inspect the NICs using:
+```
+# ifconfig
+```
+
+If your NIC is not present you need to load the NIC driver corresponding to 
+your NIC in the hardware compatibility list.  You can look at the hardware 
+present on your machine using `pciconf -lv`.
+
+    Hardware Notes [[https://www.freebsd.org/releases/12.1R/hardware/]]
+
+Below is a table of common network interface drivers that may need to be 
+loaded, but for more obscure hardware please refer to the hardware list above.
+
++-----------+---------------------------+
+| Driver    | 10 Gbps NICs              |
++-----------+---------------------------+
+| mlx4en    | Mellanox ConnectX-3       |
+| mlx5en    | Mellanox ConnectX-4/5     |
+| if_cxgbe  | Chelsio T4/T5/T6          |
+| if_ix     | Intel 82598 based         |
+| if_ixl    | Intel 700 Series          |
+| sfxge     | Solarflare                |
+| if_lio    | Cavium LiquidIO           |
++-----------+---------------------------+
+
+You can load the driver using `kldload <drivername>`.
+
+To specify a static IP instead of DHCP you need to edit `/etc/rc.conf`.  The 
+easiest way is to use `bsdinstall netconfig` to go through a graphical menu 
+allowing one to configure all available NICs and DNS.  If you do use this 
+method you can verify connectivity and skip to the next section.
+
+The manual way is to use the `sysrc` command or directly edit the 
+`/etc/rc.conf` file with `vim`/`edit`/`ed` or another editor on the system.  We 
+provide a simple example using `sysrc`, but for more complex network 
+requirements please see the FreeBSD handbook.
+
+```
+# sysrc -x ifconfig_DEFAULT
+# sysrc hostname="aurora.rcs.uwaterloo.ca"
+# sysrc ifconfig_<ifname0>="10.0.0.2 netmask 255.255.255.0"
+# sysrc defaultrouter="10.0.0.1"
+```
+
+In this example we use `sysrc` to delete the `ifconfig_DEFAULT` option that 
+configures all NICs to use DHCP (in our USB key).  We then configure the 
+`ifname0` NIC to use a static IP address of 10.0.0.2 with a netmask of 
+255.255.255.0 and configured the default gateway to 10.0.0.1.  Please replace 
+this with the correct IP address for your network.  Similarly you can also 
+specify the hostname (or FQDN) here.
+
+If using static IP addresses you also need to configure the DNS server 
+addresses by editing `/etc/resolv.conf`.  The following example uses 
+Cloudflare's public DNS server.
+```
+nameserver 1.1.1.1
+nameserver 1.0.0.1
+```
+
+Benchmark Configuarion and Setup
 ----------------------
-The scripts require knowledge of the devices used, and IPs approprate to bind
+The scripts require knowledge of the devices used, and IPs appropriate to bind
 to for multi-client benchmarking services like redis and memcached.  The
-configuration file is called `aurora.config`. In this file you will find each
+configuration file is called `aurora.config`.  In this file you will find each
 required option outlined as a comment. Other tunables are present but not required.
 
 Once configured go into the `artifact_evaluation` directory and type
@@ -131,7 +211,7 @@ of the paper, all that is required is to run:
 ./fig3.sh
 ```
 
-Figures will be outputed to the `graphs` directory found in the 
+Figures will be outputted to the `graphs` directory found in the 
 `artifact_evaluation` directory.
 
 As Aurora is not complete, crashes still can occur. If this happens, all that
@@ -147,4 +227,15 @@ If you would like to see more information while the figure scripts are running
 just tail the aurora log file. By default it is the working directory of the 
 figure script and called aurora.log. This can be changed in the aurora.config 
 file.
+
+Additional Problems
+-------------------
+
+We are happy to provide support in setting up or troubleshooting our system in 
+any way.  For general FreeBSD configuration questions please refer to FreeBSD 
+handbook [[https://docs.freebsd.org/en/books/handbook/]] or man pages.
+
+If you run into any crashes please report them as we are continuously improving 
+the system stability.  Please be patient if you do run into any issues this is 
+a complex system of over 20K source lines of code.
 
