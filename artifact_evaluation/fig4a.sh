@@ -137,7 +137,7 @@ mkdir -p $AURORA_REDIS_DIR
 setup_script
 
 if [ "$MODE" = "VM" ]; then
-	MAX_ITER=2
+	MAX_ITER=1
 else
 	MAX_ITER=9
 fi

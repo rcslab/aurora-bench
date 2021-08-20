@@ -1,5 +1,5 @@
 set $dir=/testmnt
-set $filesize=100m
+set $filesize=10m
 set $iosize=4k
 set $nthreads=1
 set $workingset=0

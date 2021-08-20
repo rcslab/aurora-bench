@@ -146,9 +146,9 @@ run_aurora()
 setup_script
 clear_log
 if [ "$MODE" = "VM" ]; then
-	MAX_ITER=2
+	MAX_ITER=1
 else
-	MAX_ITER=3
+	MAX_ITER=9
 fi
 echo "[Aurora] Running with $MAX_ITER iterations"
 

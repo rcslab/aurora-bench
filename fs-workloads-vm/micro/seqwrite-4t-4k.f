@@ -24,7 +24,7 @@
 #
 
 set $dir=/testmnt
-set $filesize=100m
+set $filesize=10m
 set $nthreads=1
 set $iosize=4k
 

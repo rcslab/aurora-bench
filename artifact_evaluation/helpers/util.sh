@@ -5,7 +5,12 @@ setup_script()
 	. $SRCROOT/tests/aurora
 	. aurora.config
 	if [ "$MODE" = "VM" ]; then
-	    echo "[Aurora] Running Benchmark in VM Mode"
+	    echo "[Warning] Running Benchmark in VM Mode. This mode runs all
+	    benchmarks in a reduced mode and is provided as a way to easily run
+	    Aurora and the benchmarks found in the paper. This means numbers
+	    and graphs created by the script could be drastically different
+	    from those found in the paper"
+
 	    # Freqency of checkpoint max and mins
 	    MAX_FREQ=1000
 	    MIN_FREQ=100
@@ -58,7 +63,7 @@ setup_aurora()
 	if [ -z "$1" ]; then
 		sysctl aurora_slos.checkpointtime=$1
 	else
-		sysctl aurora_slos.checkpointtime=10
+		sysctl aurora_slos.checkpointtime=$MIN_FREQ
 	fi
 	aursetup
 }
