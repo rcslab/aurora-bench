@@ -24,7 +24,7 @@ setup_filebench()
 
 setup_mutilate()
 {
-    # Setup filebench
+    echo "[Aurora] Setting up mutilate"
     git clone https://github.com/rcslab/mutilate.git dependencies/mutilate
     cd dependencies/mutilate
 
@@ -45,6 +45,7 @@ setup_mutilate()
 setup_ycsb()
 {
     # Setup YCSB
+    echo "[Aurora] Setting up YCSB"
     PD=$(pwd)
     cd dependencies
     curl -O --location $YCSB_TAR
@@ -63,6 +64,7 @@ setup_ycsb()
 
 setup_prog()
 {
+    echo "[Aurora] Setting up graphing tool progbg"
     git clone --branch artifact https://github.com/krhancoc/progbg.git dependencies/progbg
     pkg install -y py37-numpy py37-matplotlib py37-pandas py37-flask
     chmod -R a+rw dependencies/progbg
@@ -73,8 +75,7 @@ check_library()
     O1=`ls /usr/local/lib | grep $1`
     O2=`ls /usr/lib | grep $1`
     O3=`ls /lib | grep $1`
-    echo "$O1 $O2 $O3"
-    if [ -z $O1 ] && [ -z $O2 ] && [ -z $O3 ]; then
+    if [ -z "$O1" ] && [ -z "$O2" ] && [ -z "$O3" ]; then
 	echo "Libary $1 not present locally, please install"
     fi
 
@@ -83,9 +84,9 @@ check_library()
 check_remote_library()
 {
     O1=`ssh $2 ls /usr/local/lib | grep $1`
-    O3=`ssh $2 ls /usr/lib | grep $1`
+    O2=`ssh $2 ls /usr/lib | grep $1`
     O3=`ssh $2 ls /lib | grep $1`
-    if [ -z $O1 ] && [ -z $O2 ] && [ -z $O3 ]; then
+    if [ -z "$O1" ] && [ -z "$O2" ] && [ -z "$O3" ]; then
 	echo "Libary $1 not present on remote $2, please install"
     fi
 }
@@ -169,7 +170,7 @@ check_dependencies()
 setup_rocksdb()
 {
     PD=$(pwd)
-    git clone https://github.com/krhancoc/rocksdb.git dependencies/rocksdb
+    git clone https://github.com/rcslab/aurora-rocksdb.git dependencies/rocksdb
     cd dependencies/rocksdb
 
     git checkout sls-baseline2
@@ -188,6 +189,12 @@ setup_rocksdb()
     cd $PD
 }
 
+# Setup SLS Module
+cd $SRCROOT
+make clean > /dev/null
+make -j 8 > /dev/null
+cd -
+
 mkdir dependencies 2> /dev/null
 chmod a+rw dependencies
 
@@ -201,17 +208,24 @@ chmod a+rw $OUT 2> /dev/null
 check_dependencies
 
 # Fetches and unpacks ycsb artifact
-setup_ycsb > /dev/null
+echo "[Aurora] Setting up YCSB"
+setup_ycsb > /dev/null 2> /dev/null
 
 # Fetches and compiles filebench
+echo "[Aurora] Setting up filebench"
 setup_filebench > /dev/null
 
 # Sets up the python library used to create graphs
+echo "[Aurora] Setting up progbg"
 setup_prog > /dev/null
 
 # Fetches and compiled mutilate on host and all clients
+echo "[Aurora] Setting up mutilate"
 setup_mutilate  > /dev/null
 
+echo "[Aurora] Setting up rocksdb"
 setup_rocksdb > /dev/null
 
+
 wait
+echo "[Aurora] Setup Done"

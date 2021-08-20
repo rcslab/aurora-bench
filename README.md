@@ -14,7 +14,7 @@ knowledge to configure and benchmark.
 Requirements
 ------------
  * A running FreeBSD 12.1 system with the Aurora patches
- * 4xIntel 900P Optane SSD for the Aurora host
+ * 4xIntel 900P Optane SSD (250 GiB each, 1 TiB Total) for the Aurora host
  * 10 Gbps NICs (we tested with X722 NICs) on all machine
  * Multiple hosts for redis/YCSB and memcached/mutilate benchmarks
  * Client require the installation of ssh keys for the root user on the Aurora 
@@ -236,7 +236,38 @@ We are happy to provide support in setting up or troubleshooting our system in
 any way.  For general FreeBSD configuration questions please refer to
 [FreeBSD handbook](https://docs.freebsd.org/en/books/handbook/) or man pages.
 
-If you run into any crashes please report them as we are continuously improving 
+If you run into any consistent crashes please report them as we are continuously improving 
 the system stability.  Please be patient if you do run into any issues this is 
 a complex system of over 20K source lines of code.
+
+Currently RocksDB highly stresses the system at high frequencies (100 Hz) and
+a few known bugs can occur more frequently in these benchmarks. The only
+issue that requires user intervention is an object terminate hang. If you find an
+iteration in RocksDB takes longer than normal (>90s). Using CTRL-T in the
+terminal which will show info around the current running process (the RocksDB
+benchmark).  If you see `[objtrm]` in the info provided, this means this hang has
+occured and will require a restart of the system.
+
+Other issues may occur but manifest as a panic in the kernel. The
+user can safely restart and retry the script (it will start from the iteration
+of the last crash).
+
+Errata
+-------
+A mistake was made in Fig 3 c and d which effects the scale of the operations
+but not the relative difference between the benchmarks. When creating the
+graphs, a logic error costed the operations to be multiplied by a constant
+factor. This has been corrected which is why you will see a change in the y
+axis. 
+
+Secondly, due to a crash that could occur in our small write path (writes
+of <64 Kib), we applied a fix which ended up costing 25-30% in performance. The
+result is that FFS will come out ahead in the 4KiB sync write due to our
+unoptimized small write path.  Checking the data you can confirm this (found in
+OUT/filesystem/ffs/micro/writedsync-4t-4k and
+OUT/filesystem/aurora/micro/writedsync-4t-4k) as we saw FFS able to do around
+~100MiB/s per thread in throughput for these writes, while we only achieve
+around ~MiB/s per thread. You still see the results of our checkpoint
+consistent model as the syncs in Aurora are 1000x faster than FFS (due to it
+being a no-op).
 

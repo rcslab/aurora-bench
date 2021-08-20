@@ -49,11 +49,15 @@ const_base = os.path.join(base_path, "base")
 base = sb.plan_parse(const_base, const_base, parse_redis)
 
 x=[ int(x) for x in fs ]
-l1 = g.Line(execs, "throughput", x=x)
+l1 = g.Line(execs, "throughput", x=x, label="With Aurora")
 l2 = g.ConstLine(base, "Base", "throughput")
 fig4a = sb.plan_graph(g.LineGraph([l1, l2], std=True,
     out="fig4a.svg",
     formatters=[ 
         f.set_size(10, 5),
+        f.set_yrange(0, None),
+        f.yaxis_formatter(label="Operations per second"),
+        f.xaxis_formatter("Checkpoint Period"),
+        f.set_title("Redis with Aurora"),
     ]
 ))

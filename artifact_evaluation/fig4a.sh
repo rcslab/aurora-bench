@@ -6,11 +6,6 @@ AURORACTL=$SRCROOT/tools/slsctl/slsctl
 REDIS_PORT=9785
 REDIS_THREADS=12
 
-if [ "$MODE" = "VM" ]; then
-MAX_ITER=2
-else
-MAX_ITER=9
-fi
 
 run_redis_ycsb()
 {
@@ -33,6 +28,7 @@ run_redis_ycsb()
 
     if [ "$SLS" = "on" ]; then
 	setup_aurora $FREQ >> $LOG 2>> $LOG
+	echo "[Aurora] Redis Server Aurora $BACKEND - $FREQ"
 	$AURORACTL partadd -o 1 -d -t $FREQ -b $BACKEND >> $LOG 2>> $LOG
     else
 	# Setup the database on the stripe as well - use ffs
@@ -107,12 +103,12 @@ run_redis_ycsb()
 
 run_base()
 {
-    echo "[Aurora] Running Redis base"
     for ITER in `seq 0 $MAX_ITER`
     do
 	if check_completed $OUT/redis/base/$ITER.out; then
 	    continue
 	fi
+	echo "[Aurora] Running Redis base: $ITER"
 	run_redis_ycsb "base" $ITER
     done
     echo "[Aurora] Done running Redis base"
@@ -120,7 +116,6 @@ run_base()
 
 run_aurora()
 {
-    echo "[Aurora] Running Redis Aurora"
     for f in `seq $MIN_FREQ $FREQ_STEP $MAX_FREQ`
     do
 	echo "[Aurora] Running redis with Aurora: Checkpoint period $f"
@@ -129,6 +124,7 @@ run_aurora()
 	    if check_completed $OUT/redis/$f/$ITER.out; then
 		continue
 	    fi
+	    echo "[Aurora] Running Redis Aurora Iteration $ITER"
 	    run_redis_ycsb "$f" $ITER $f
 	done
     done
@@ -139,6 +135,14 @@ run_aurora()
 mkdir -p $OUT/redis
 mkdir -p $AURORA_REDIS_DIR
 setup_script
+
+if [ "$MODE" = "VM" ]; then
+	MAX_ITER=2
+else
+	MAX_ITER=9
+fi
+echo "Running with $MAX_ITER iterations"
+
 
 # Create the redis conf
 sed "s/PASSWORD/$AURORA_REDIS_PASSWORD/g; s/URL/$AURORA_REDIS_URL/g; s/DIR/$AURORA_REDIS_DIR_SED/g;" \
@@ -154,4 +158,6 @@ PYTHONPATH=$PYTHONPATH:$(pwd)/dependencies/progbg
 export PYTHONPATH
 export OUT
 export MODE
+echo "[Aurora] Creating Fig4a Graph"
 python3.7 -m progbg graphing/fig4a.py
+

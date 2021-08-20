@@ -14,12 +14,6 @@ MUTILATE_CONNECTIONS=12
 MUTILATE_WARMUP=5
 MUTILATE_TIME=15
 
-if [ "$MODE" = "VM" ]; then
-MAX_ITER=2
-else
-MAX_ITER=9
-fi
-
 run_memcached()
 {
     CHILD_DIR=$1
@@ -43,7 +37,8 @@ run_memcached()
     PIDFILE="-P $MEMCACHED_PIDFILE"
     CONNECTIONS="-c $MEMCACHED_CONNECTIONS"
 
-    memcached $USER $ADDRESS $THREADS $PORT_A $PIDFILE $CONNECTIONS &
+    timeout 60s memcached $USER $ADDRESS $THREADS $PORT_A $PIDFILE $CONNECTIONS &
+    PID=`pidof memcached`
 
     if [ "$SLS" = "on" ]; then
 	pid=`pidof memcached`
@@ -103,7 +98,11 @@ run_memcached()
     done
 
 
-    wait
+    wait $PID
+    if [ $? -eq 124 ]; then
+	echo "[Aurora] Issue with memcached timing out - restart is required"
+	exit 1
+    fi
 
     mv /tmp/out $OUT/memcached/$CHILD_DIR/$ITER.out
     fsync $OUT/memcached/$CHILD_DIR/$ITER.out
@@ -113,7 +112,6 @@ run_memcached()
 
 run_base()
 {
-    echo "[Aurora] Running memcached base"
     mkdir -p $OUT/memcached/base 2> /dev/null
 
     for ITER in `seq 0 $MAX_ITER`
@@ -121,6 +119,7 @@ run_base()
 	if check_completed $OUT/memcached/base/$ITER.out; then
 	    continue
 	fi
+	echo "[Aurora] Running memcached base: $ITER"
 	run_memcached "base" $ITER >> $LOG 2>> $LOG
     done
     echo "[Aurora] Done running memcached base"
@@ -131,24 +130,27 @@ run_aurora()
 {
     for f in `seq $MIN_FREQ $FREQ_STEP $MAX_FREQ`
     do
-	echo "[Aurora] Running memcached with Aurora: Checkpoint period $f"
 	mkdir -p $OUT/memcached/$f 2> /dev/null
 	for ITER in `seq 0 $MAX_ITER`
 	do
 	    if check_completed $OUT/memcached/$f/$ITER.out; then
 		continue
 	    fi
+	    echo "[Aurora] Running memcached with Aurora: Checkpoint period $f, Iteration $ITER"
 	    run_memcached "$f" $ITER $f >> $LOG 2>> $LOG
 	done
-	echo "[Aurora] Done running memcached with Aurora"
     done
-
-
+    echo "[Aurora] Done running memcached with Aurora"
 }
 
 setup_script
-
 clear_log
+if [ "$MODE" = "VM" ]; then
+	MAX_ITER=2
+else
+	MAX_ITER=3
+fi
+echo "[Aurora] Running with $MAX_ITER iterations"
 
 run_base
 
@@ -158,5 +160,6 @@ PYTHONPATH=$PYTHONPATH:$(pwd)/dependencies/progbg
 export PYTHONPATH
 export OUT
 export MODE
+echo "[Aurora] Creating Fig4b Graph"
 python3.7 -m progbg graphing/fig4b.py
 

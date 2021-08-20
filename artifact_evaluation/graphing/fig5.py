@@ -31,9 +31,7 @@ def parse(metrics, path):
                 # metrics.add_metric("ops", int(l.strip().split()[4]))
         if found == False:
             print("[Error] {} did not execute or pre-emptively shut down, please re-run fig5.sh".format(path))
-            print(open(path).read())
             os.unlink(path)
-            exit (0)
 
     
 executions = {}
@@ -58,7 +56,6 @@ def rocks_graph(ax, data):
         ax.bar(locations[i], [ x ], 0.5, label=names[i], color = colors[i], yerr=[ values_std[i] ])
     ax.set_xticks([0.25, 1.75])
     ax.set_xticklabels(["No Sync", "Sync"])
-    ax.legend()
 
 # Temporary graphs for now
 rocks = g.Bar(bnw, ["ops"], label="RocksDB")

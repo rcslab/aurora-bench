@@ -47,7 +47,7 @@ setup_script()
 
 	    # RocksDB Benchmark Values
 	    ROCKSDB_NUM=50000000
-	    ROCKSDB_DUR=60
+	    ROCKSDB_DUR=30
 	fi
 }
 

@@ -5,11 +5,6 @@ echo "[Aurora] Figure 3"
 . aurora.config
 
 BENCHMARKS="../fs-workloads/"
-if [ "$MODE" = "VM" ]; then
-MAX_ITER=0
-else
-MAX_ITER=2
-fi
 
 run_aurorafs()
 {
@@ -129,7 +124,14 @@ run_zfs()
 }
 
 
+setup_script
 clear_log
+if [ "$MODE" = "VM" ]; then
+	MAX_ITER=0
+else
+	MAX_ITER=2
+fi
+echo "[Aurora] Running with $MAX_ITER iterations"
 
 run_ffs
 
@@ -142,4 +144,5 @@ run_aurorafs
 PYTHONPATH=$PYTHONPATH:$(pwd)/dependencies/progbg
 export PYTHONPATH
 export OUT
+echo "[Aurora] Creating Fig3 Graph"
 python3.7 -m progbg graphing/fig3.py

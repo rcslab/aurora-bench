@@ -1,15 +1,9 @@
 #!/usr/local/bin/bash
 . aurora.config
 . helpers/util.sh
-setup_script
 
 AURORACTL=$SRCROOT/tools/slsctl/slsctl
 
-if [ "$MODE" = "VM" ]; then
-MAX_ITER=0
-else
-MAX_ITER=2
-fi
 
 db_bench() {
     cd dependencies/rocksdb
@@ -47,19 +41,19 @@ db_bench() {
 	--threads=24 \
 	"${@:2}"
     cd -
+    return $?
 }
 
 run_base_wal()
 {
     DIR=$OUT/rocksdb/base-wal
     mkdir -p $DIR
-    echo "[Aurora] Running Rocksdb Baseline: WAL"
-
     for ITER in `seq 0 $MAX_ITER`
     do
 	if check_completed "$DIR/$ITER.out"; then
 	    continue
 	fi
+	echo "[Aurora] Running Rocksdb Baseline: WAL, Iteration $ITER"
 	setup_zfs_rocksdb >> $LOG 2>> $LOG
 	db_bench baseline --sync=true --disable_wal=false > /tmp/out
 	teardown_zfs >> $LOG 2>> $LOG
@@ -72,13 +66,13 @@ run_base_nowal()
 {
     DIR=$OUT/rocksdb/base-nowal
     mkdir -p $DIR
-    echo "[Aurora] Running Rocksdb Baseline: No WAL"
     for ITER in `seq 0 $MAX_ITER`
     do
 	if check_completed "$DIR/$ITER.out"; then
 	    continue
 	fi
 
+	echo "[Aurora] Running Rocksdb Baseline: No WAL, Iteration $ITER"
 	setup_zfs_rocksdb >> $LOG 2>> $LOG
 	db_bench baseline --sync=false --disable_wal=true > /tmp/out
 	teardown_zfs
@@ -102,7 +96,6 @@ stripe_setup_wal()
     gstripe create -s "$STRIPESIZE" -v "$STRIPENAME" $ROCKS_STRIPE1
     set -- $ROCKS_STRIPE2
     if [ $# -gt 1 ]; then
-	echo "$ROCKS_STRIPE2 $# $1"
 	gstripe create -s "$STRIPESIZE" -v "st1" $ROCKS_STRIPE2
 	ln -s /dev/stripe/st1 /dev/wal
     else
@@ -114,7 +107,7 @@ stripe_setup_wal()
     DISKPATH="/dev/$DISK"
 
     aursetup
-    if [ -z "$1" ]; then
+    if [ -z "$CKPT_FREQ" ]; then
 	    sysctl aurora_slos.checkpointtime=$CKPT_FREQ
     else
 	    sysctl aurora_slos.checkpointtime=$MAX_FREQ
@@ -128,6 +121,7 @@ stripe_teardown_wal()
 
     aurunstripe
     gstripe destroy "st1"
+    umount /testmnt/dev > /dev/null 2> /testmnt/dev
     rm /dev/wal
 }
 
@@ -136,28 +130,37 @@ run_aurora_nowal()
     DIR=$OUT/rocksdb/aurora-nowal
     mkdir -p $DIR
 
-    echo "[Aurora] Running Rocksdb SLS: No WAL"
     for ITER in `seq 0 $MAX_ITER`
     do
 	if check_completed "$DIR/$ITER.out"; then
 	    continue
 	fi
 
-	rm /tmp/out
-	stripe_setup_wal $MIN_FREQ
+	echo "[Aurora] Running Rocksdb SLS: No WAL, Iteration $ITER"
+	rm /tmp/out 2> /dev/null > /dev/null
+	stripe_setup_wal $MAX_FREQ >> $LOG 2>> $LOG
 	$AURORACTL partadd -o 1 -d -t $MIN_FREQ -b $BACKEND >> $LOG 2>> $LOG
 
 	db_bench baseline --sync=false --disable_wal=true > /tmp/out &
-	sleep 2
+	FUNC_PID="$!"
+	if [ "$MODE" = "VM" ]; then
+		sleep 2
+	else
+		sleep 15
+	fi
 
 	pid=`pidof db_bench`
 	$AURORACTL attach -o 1 -p $pid 2>> $LOG >> $LOG
 	$AURORACTL checkpoint -o 1 -r >> $LOG 2>> $LOG
 
-	wait
+	wait $FUNC_PID
+	if [ $? -eq 124 ];then
+		echo "[Aurora] Issue with db_bench, restart required"
+		exit 1
+	fi
 	sleep 2
 
-	stripe_teardown_wal
+	stripe_teardown_wal >> $LOG 2>> $LOG
 
 	mv /tmp/out $DIR/$ITER.out
 	fsync $DIR/$ITER.out
@@ -167,8 +170,8 @@ run_aurora_nowal()
 run_aurora_wal()
 {
     DIR=$OUT/rocksdb/aurora-wal
+    stripe_teardown_wal > /dev/null 2> /dev/null
     mkdir -p $DIR
-    echo "[Aurora] Running Rocksdb SLS: WAL"
     for ITER in `seq 0 $MAX_ITER`
     do
 	if check_completed "$DIR/$ITER.out"; then
@@ -176,12 +179,12 @@ run_aurora_wal()
 	fi
 
 	# We need custom stripes for the WAL as we use a seperate stripe to directly write to for the WAL
+	echo "[Aurora] Running Rocksdb SLS: WAL, Iteration $ITER"
 	stripe_setup_wal $MAX_FREQ
 
 	db_bench sls --sync=true --disable_wal=false > /tmp/out
 
 	# Wait for the final checkpoint to be done
-	sleep 3
 
 	stripe_teardown_wal
 
@@ -191,10 +194,14 @@ run_aurora_wal()
     done
 }
 
-. helpers/util.sh
-. aurora.config
-
+setup_script
 clear_log
+if [ "$MODE" = "VM" ]; then
+	MAX_ITER=0
+else
+	MAX_ITER=0
+fi
+echo "[Aurora] Running with $MAX_ITER iterations"
 
 mkdir -p $OUT/rocksdb
 
@@ -206,6 +213,7 @@ run_aurora_wal
 
 run_aurora_nowal
 
+echo "[Aurora] Creating RocksDB Graphs"
 PYTHONPATH=$PYTHONPATH:$(pwd)/dependencies/progbg
 export PYTHONPATH
 export OUT
