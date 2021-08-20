@@ -2,6 +2,7 @@
 . aurora.config
 
 YCSB_TAR="https://github.com/brianfrankcooper/YCSB/releases/download/0.17.0/ycsb-0.17.0.tar.gz"
+THRS=`sysctl hw.ncpu | awk -F ' ' '{print $2}'`
 setup_filebench()
 {
     # Setup filebench
@@ -17,7 +18,7 @@ setup_filebench()
 
     # Make Filebench
     ./configure
-    make -j 8
+    make -j $THRS
     make install
     cd -
 }
@@ -152,7 +153,10 @@ check_dependencies()
     check_binary "scons"
     check_binary "gengetopt"
     check_binary "memcached"
-    # Depedencies for clients
+
+    # Dependencies for rocksdb
+    check_library "snappy"
+    check_library "gflags"
 
     set -- $EXTERNAL_HOSTS
     while [ -n "$1" ];
@@ -177,22 +181,25 @@ setup_rocksdb()
     mkdir baseline
     cd baseline
     cmake .. -DCMAKE_BUILD_TYPE=Release -DFAIL_ON_WARNINGS=OFF -DWITH_SNAPPY=ON -DSLS_PATH=$SRCROOT
-    make -j 32 db_bench
+    make -j $THRS db_bench
 
     cd ..
     git checkout sls2
     mkdir sls
     cd sls
     cmake .. -DCMAKE_BUILD_TYPE=Release -DFAIL_ON_WARNINGS=OFF -DWITH_SNAPPY=ON -DSLS_PATH=$SRCROOT
-    make -j 32 db_bench
+    make -j $THRS db_bench
 
     cd $PD
 }
 
+# Checks all dependencies needed on clients and main aurora host
+check_dependencies
+
 # Setup SLS Module
 cd $SRCROOT
 make clean > /dev/null
-make -j 8 > /dev/null
+make -j $THRS > /dev/null
 cd -
 
 mkdir dependencies 2> /dev/null
@@ -204,8 +211,6 @@ chmod a+rw "$AURORA_REDIS_DIR" 2> /dev/null
 mkdir $OUT 2> /dev/null
 chmod a+rw $OUT 2> /dev/null
 
-# Checks all dependencies needed on clients and main aurora host
-check_dependencies
 
 # Fetches and unpacks ycsb artifact
 echo "[Aurora] Setting up YCSB"

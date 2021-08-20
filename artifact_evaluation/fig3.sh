@@ -4,7 +4,6 @@ echo "[Aurora] Figure 3"
 . helpers/util.sh
 . aurora.config
 
-BENCHMARKS="../fs-workloads/"
 
 run_aurorafs()
 {
@@ -127,8 +126,10 @@ run_zfs()
 setup_script
 clear_log
 if [ "$MODE" = "VM" ]; then
+	BENCHMARKS="../fs-workloads-vm/"
 	MAX_ITER=0
 else
+	BENCHMARKS="../fs-workloads/"
 	MAX_ITER=2
 fi
 echo "[Aurora] Running with $MAX_ITER iterations"

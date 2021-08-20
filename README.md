@@ -92,6 +92,8 @@ Dependencies for Aurora Host
  * redis
  * firefox
  * memcached
+ * snappy
+ * gflags
 
 For newly installed machines the official package repository is no longer 
 supported.  We've provided a new package repository at:
@@ -187,6 +189,18 @@ Cloudflare's public DNS server.
 nameserver 1.1.1.1
 nameserver 1.0.0.1
 ```
+
+Once networking has been setup, at least one other host (Linux or FreeBSD) is
+required to run the client-server workloads (Redis and Memcached). We require
+that all hosts used in this benchmark be preconfigured with ssh keys so the
+current Aurora machine is able to easily ssh into these hosts through aliases
+outlined in the .ssh/config file. These aliases are then used in the
+aurora.config file (the `EXTERNAL_HOSTS` variable). For example suppose you
+have two aliased hosts `foo` and `bar`. Then the aurora.config file would look
+like:
+```
+EXTERNAL_HOSTS="foo bar"
+````
 
 Benchmark Configuarion and Setup
 ----------------------
