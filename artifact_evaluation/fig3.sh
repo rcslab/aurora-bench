@@ -4,12 +4,9 @@ echo "[Aurora] Figure 3"
 . helpers/util.sh
 . aurora.config
 
-
 run_aurorafs()
 {
 	echo "[Aurora] Running AuroraFS"
-	setup_script
-
 	teardown_aurora > /dev/null 2> /dev/null
 
 	# AuroraFS: Figure 3 
@@ -46,7 +43,6 @@ run_aurorafs()
 run_ffs()
 {
 	echo "[Aurora] Running FFS"
-	setup_script
 
 	teardown_ffs > /dev/null 2> /dev/null
 
@@ -88,7 +84,6 @@ run_zfs()
 {
 	CHECKSUM=$1
 	echo "[Aurora] Running ZFS, checksumming $CHECKSUM"
-	setup_script
 	teardown_zfs > /dev/null 2> /dev/null
 
 	# AuroraFS: Figure 3 

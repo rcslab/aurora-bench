@@ -4,7 +4,6 @@ setup_script()
 	. aurora.config
 	. $SRCROOT/tests/aurora
 	. aurora.config
-	MAX_ITER=1
 	if [ "$MODE" = "VM" ]; then
 	    echo "[Aurora] Running Benchmark in VM Mode"
 	    # Freqency of checkpoint max and mins
