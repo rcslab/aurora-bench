@@ -44,8 +44,8 @@ On any UNIX like OS you can download and install the image onto a USB drive
 that is 16 GBs or larger.
 
 ```
-# wget https://rcs.uwaterloo.ca/aurora/liveusb.dd.xz
-# xzcat liveusb.dd.xz | dd of=<USBDEVICE> bs=1m
+# wget https://rcs.uwaterloo.ca/aurora/liveusb.dd.gz
+# gzcat liveusb.dd.gz | dd of=<USBDEVICE> bs=1m
 ```
 
 Boot the live USB on a machine to have a live installation of Aurora running.  
@@ -58,8 +58,8 @@ Once booted you can skip to [machine configuration section below](#system-config
 
 Install an already patched FreeBSD image from an iso or USB installer.
 
- * cdrom iso: https://rcs.uwaterloo.ca/aurora/installer.iso.xz
- * USB image: https://rcs.uwaterloo.ca/aurora/installer.dd.xz
+ * cdrom iso: https://rcs.uwaterloo.ca/aurora/installer.iso.gz
+ * USB image: https://rcs.uwaterloo.ca/aurora/installer.dd.gz
 
 You can now reboot and proceed with the instructions in README.md in the main 
 aurora repository at https://github.com/rcslab/aurora.  Once those instructions 
@@ -88,28 +88,60 @@ You can now reboot and proceed with the instructions in README.md in the main
 aurora repository at https://github.com/rcslab/aurora.  Once those instructions 
 are complete you can resume these instructions below.
 
+System Parameters
+-----------------
+
+If you are using our live USB image these system parameters should be 
+preconfigured correctly, for any other installation method please edit the 
+following files.
+
+We require a few settings to ensure consistency and avoid exceeding system 
+limits.  Some parameters are boot time options and will have to reboot after 
+setting these parameters.
+
+Add to `/etc/fstab` the following two lines to support java:
+```
+proc                    /proc   procfs  rw      0       0
+fdescfs                 /dev/fd fdescfs rw      0       0
+```
+
+Add to `/boot/loader.conf` the following boot time options (restart required):
+```
+dtraceall_load="YES"
+
+vm.pmap.pti="0"
+vm.pmap.pg_ps_enabled="0"
+kern.nswbuf="65536"
+```
+
+Add to `/etc/sysctl.conf` the following runtime options (service sysctl restart 
+will reload these):
+```
+kern.ipc.shm_use_phys=1
+```
+
 Dependencies for Aurora Host
 ----------------------------
-The following packages are required to installed before running any benchmarks. Benchmarks themselves are pulled and built
-using the provided `setup.sh` script.
+The following packages are required to installed before running any benchmarks.  
+Benchmarks themselves are pulled and built using the provided `setup.sh` 
+script.
 
-1. Figure 4a (Redis and YCSB):
-    * openjdk11
-    * redis-server
-2. Figure 4b (Memcached and Mutilate):
-    * memcached
-    * gengetopt
-    * libzmq2
-    * scons
-3. Figure 5 (RocksDB):
-    * libsnappy
-    * libgflags
-4. Table 6 (Application Checkpointing):
-    * mosh
-    * redis
-    * firefox
-5. Table 7 (Versus CRIU):
-    * A Linux host to run (See the [Running CRIU](#running-criu) Section)
+ * autoconf
+ * automake
+ * cmake
+ * firefox
+ * gflags
+ * libtool
+ * memcached
+ * mosh
+ * openjdk11
+ * redis
+ * scons-py37
+ * snappy
+ * tomcat9
+ * py37-numpy
+ * py37-pandas
+ * py37-matplotlib
 
 For newly installed machines the official package repository is no longer 
 supported.  We've provided a new package repository at:
@@ -118,19 +150,29 @@ https://rcs.uwaterloo.ca/aurora/Aurora:amd64:12.1/
 Modify `/etc/pkg/FreeBSD.conf` to point to this repository, remove the url type 
 if it is set, and set the `signature_type` to `none`.
 
+Installing pkg without the official repository requires extra steps because the 
+CA root certificates will fail:
+1. Run `setenv SSL_NO_VERIFY_PEER 1` to disable certificate validation
+2. Run `pkg` and follow the instructions to install pkg
+3. Run `pkg install ca_root_nss`
+
+To install all the remaining dependencies run the following:
 ```
-# pkg install openjdk11
-# pkg install firefox memcached mosh openjdk11 redis
+# pkg install autoconf automake libtool cmake scons-py37
+# pkg install gflags snappy
+# pkg install firefox memcached mosh redis
+# pkg install openjdk11 tomcat9
+# pkg install py37-numpy py37-pandas py37-matplotlib
 ```
 
 Dependencies for Clients
 ------------------------
  * JDK11 (Version does not particularly matter however): YCSB benchmark
  * Scons (Python Version 3.7 or higher): mutilate benchmark
- * libzmq2 (Zero MQ library): mutilate benchmark
+ * libzmq2 (Zero MQ library Version 2): mutilate benchmark
  * libevent: mutilate benchmark
  * gengetopt: mutilate benchmark
- * A C++0x compiler: mutilate benchmark
+ * clang/llvm or gcc based C++0x compiler: mutilate benchmark
 
 Once these dependencies are installed our setup script will handle the fetching 
 and compiling of the various benchmarks on the client  (given that SSH keys are
@@ -212,42 +254,68 @@ Once networking has been setup, at least one other host (Linux or FreeBSD) is
 required to run the client-server workloads (Redis and Memcached). **To match our
 evaluation in the paper, 5 clients are required**. 
 
-All hosts must be preconfigured with ssh keys so the root user on the Aurora
-host is able to easily (no password prompt) ssh into clients through associated
-aliases outlined in the root user's .ssh/config file. These aliases are then
-used in the aurora.config file (the `EXTERNAL_HOSTS` variable). 
+All hosts must be configured with ssh keys, so that the root user on the host 
+running Aurora can ssh to the client hosts without a password.  You may either 
+use ssh-agent to cache the ssh key or install private keys that do not contain 
+a password into the .ssh/ directory.
 
-For example suppose you have two aliased hosts `foo` and `bar`. Then the aurora.config file
-would look like:
+The scripts will ssh to hosts listed in the `aurora.config` file in 
+`aurora-bench/artifact_evaluation/`.  For example suppose you have two hosts 
+`foo` and `bar`. Then the `aurora.config` file would look like:
+
 ```
 EXTERNAL_HOSTS="foo bar"
 ````
 
+If you want to ssh as a different user, you can modify the root user's 
+.ssh/config file.  This will allow to override any default SSH parameters 
+including the username, port, and key.  Please see the OpenSSH manual for 
+details.  A simple example for this file is provided below:
+
+```
+Host foo
+    User bob
+    Port 22
+    IdentityFile ~/.ssh/my-private-key
+```
+
 Evaluating the Artifact 
 -----------------------
+
+WARNING: Before starting when using the live USB image you should run 
+`./update.sh` as root to pull and install the latest repositories.
 
 **1. Setup**
 
 Once the system has been properly configured, we required the user to edit the
 `aurora.config` before running the `setup.sh` script. The following fields will
-likely need to be modified (examples and defaults provided in the base aurora.config).
+likely need to be modified (examples and defaults provided in the base 
+aurora.config).
 
-| Field           | Description                                                                                             |
-|-----------------|---------------------------------------------------------------------------------------------------------|
-| STRIPEDISKS     | A space seperated list of the disks used for Aurora to use (Minimum 4 required)                         |
-| ROCKS_STRIPE1   | A space seperated list of disks used for the RocksDB AuroraFS                                           |
-| ROCKS_STRIPE2   | A space seperated list of disks used for the RocksDB WAL (must be different disks from ROCKS_STRIPE1 )  |
-| SRCROOT         | Absolute location of the [Aurora Source Tree](https://github.com/rcslab/aurora)                         |
-| EXTERNAL_HOSTS  | A space seperated list of aliases to clients used for Redis and Memcached benchmarks                    |
-| AURORA_IP       | An IP on the Aurora Host which is reachable by all clients                                              |
-| MODE            | Mode to run the benchmarks in (VM or DEFAULT, VM runs reduced faster benchmarks)                        |
+| Field           | Description                                            |
+|-----------------|--------------------------------------------------------|
+| STRIPEDISKS     | Space seperated list of disks (4 required)             |
+| ROCKS_STRIPE1   | Space seperated list of disks for RocksDB AuroraFS     |
+| ROCKS_STRIPE2   | Space seperated list of disks for RocksDB WAL          |
+| SRCROOT         | Absolute path of Aurora source tree                    |
+| EXTERNAL_HOSTS  | Space seperated list of clients hosts                  |
+| AURORA_IP       | IP of the host running Aurora                          |
+| MODE            | Mode to run the benchmarks (VM or DEFAULT)             |
 
-Once this has been properly configured, run the following in the artifact_evaluation directory:
+WARNING: For machines that do comply with our minimum requirements or are 
+slower the DEFAULT MODE flag is not expected to work correctly and may lead to 
+hangs.  The VM flag is a reduces the sizes and dependencies for correctness 
+runs, but performance numbers will not match.
+
+Once this has been properly configured, run the following in the 
+artifact_evaluation directory:
 ```
 ./setup.sh
 ```
-Once completed there should be a dependencies directory present in the artifact evaluation directory, with the following directorys inside -- rocksdb, ycsb, mutilate, filebench, progbg.
 
+Once completed there should be a dependencies directory present in the artifact 
+evaluation directory, with the following directorys inside -- rocksdb, ycsb, 
+mutilate, filebench, progbg.
 
 **2. Recreating the Figures**
 
@@ -259,7 +327,8 @@ of the paper, all that is required is to run:
 ./fig3.sh
 ```
 
-Figures will be outputted to the `graphs` directory found in the `artifact_evaluation` directory.
+Figures will be outputted to the `graphs` directory found in the 
+`artifact_evaluation` directory.
 
 **Note**: As Aurora is not complete, crashes still can occur. If this happens, all that is
 required is to re-run the last figure script. These scripts automatically start
@@ -268,33 +337,43 @@ output in an associated csv file for viewing.
 
 Location of Raw Data
 --------------------
-Raw data can be found in the directory specified by the OUT variable in the `aurora.config` file (/aurora-data by default). Each
-workload has its own sub-directory in this folder. Each part of the workload is divided further in the workloads directory, finally each iteration of the workload is label as ITERATION.out, where ITERATION specifies the iteration number.
+Raw data can be found in the directory specified by the OUT variable in the 
+`aurora.config` file (/aurora-data by default). Each workload has its own 
+sub-directory in this folder. Each part of the workload is divided further in 
+the workloads directory, finally each iteration of the workload is labelled as 
+ITERATION.out, where ITERATION specifies the iteration number.
 
-An example file for the varmail benchmark found in Figure 3, for FFS would have a directory path as follows:
+An example file for the varmail benchmark found in Figure 3, for FFS would have 
+a directory path as follows:
+
 ```
 /aurora-data/filesystem/ffs/macro/varmail.f/0.out
 ```
+
 While a RocksDB file would look like this:
+
 ```
 /aurora-data/rocksdb/aurora-wal/0.out
 ```
 
-
 Figure 5 Note
 -------------
-Currently RocksDB highly stresses the system at high frequencies (98 Hz) and
-a few known bugs can occur more frequently in these benchmarks. The only
-issue that requires user intervention is an object terminate hang. If you find an
-iteration in RocksDB takes longer than normal (>88s). Using CTRL-T in the
-terminal which will show info around the current running process (the RocksDB
-benchmark).  If you see `[objtrm]` in the info provided, this means this hang has
-occured and will require a restart of the system.
+Currently RocksDB stresses the system at high checkpoint frequencies (100 Hz) 
+and a few known bugs can occur more frequently in these benchmarks.  
+Particularly if your machine is slower!
 
-Other issues may occur but manifest as a panic in the kernel. The
-user can safely restart and retry the script (it will start from the iteration
-of the last crash).
+If the any RocksDB iteration appears to be hung for more than 2 minutes you may 
+need to restart the script.  Press Ctrl-T to see the process info and you will 
+that it is sleeping on `[objtrm]` with no progress in runtimes.  If this is the 
+case please reboot the machine and restart the benchmark.
 
+It should be safe to restart and retry the script (it will start from the 
+iteration of the last crash).
+
+WARNING: If you crash or restart unsafely the live USB image may drop you into 
+a shell because of an uncleanly mounted file system.  Just enter the shell and 
+run `fsck` to fix the file system and then `exit` to resume the machine 
+startup.  On custom installed machines this should be unnecessary.
 
 Running CRIU
 ------------
@@ -320,15 +399,16 @@ If you run into any consistent crashes please report them as we are continuously
 the system stability.  Please be patient if you do run into any issues this is 
 a complex system of over 20K source lines of code.
 
-Errata For Figure 3
--------------------
-A mistake was made in Figures 3c and 3d which effects the scale of the operations
-but not the relative difference between the benchmarks. When creating the
-graphs, a logic error in the graphing scripts caused the y-axis of all
-benchmarks to be multiplied by a constant factor. This has been corrected which
-is why a reduction in the overall operations will be seen. 
+Paper Errata
+------------
+Figure 3:
+The original paper submission for Figures 3c and 3d have incorrectly scaled 
+access for operations per second.  This has been corrected in the new paper and 
+does not change any relative results.
 
-Secondly, due to a crash that could occur in our small write path (writes
-of <64 Kib), we applied a fix which ended up costing 25-30% in performance. The
-result is that FFS will come out ahead in the 4KiB sync write benchmark. 
+Figure 3:
+---------
+One stability bugfix (D339) has slowed our our small write path by 25-30% 
+(writes of <64 KiB).  The result is that FFS will come out ahead in the 4 KiB 
+sync write benchmark.
 
