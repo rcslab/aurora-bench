@@ -19,7 +19,7 @@ Requirements
 ------------
  * FreeBSD 12.1 with the Aurora patches [[Repo](https://github.com/rcslab/aurora-12.1.git)]
  * Aurora Kernel module and AuroraFS [[Repo](https://github.com/rcslab/aurora.git)]
- * 4  x Intel 900P Optane SSD (250 GiB each, 1 TiB Total) for the Aurora host
+ * 4 x Intel 900P Optane SSD (250 GiB each, 1 TiB Total) for the Aurora host
  * 10 Gbps NICs (we tested with X722 NICs) on all machine
  * 6 hosts for redis/YCSB and memcached/mutilate benchmarks (1 for Aurora, 5 for clients)
 
@@ -294,11 +294,11 @@ aurora.config).
 
 | Field           | Description                                            |
 |-----------------|--------------------------------------------------------|
-| STRIPEDISKS     | Space seperated list of disks (4 required)             |
-| ROCKS_STRIPE1   | Space seperated list of disks for RocksDB AuroraFS     |
-| ROCKS_STRIPE2   | Space seperated list of disks for RocksDB WAL          |
+| STRIPEDISKS     | Space separated list of disks (4 required)             |
+| ROCKS_STRIPE1   | Space separated list of disks for RocksDB AuroraFS     |
+| ROCKS_STRIPE2   | Space separated list of disks for RocksDB WAL          |
 | SRCROOT         | Absolute path of Aurora source tree                    |
-| EXTERNAL_HOSTS  | Space seperated list of clients hosts                  |
+| EXTERNAL_HOSTS  | Space see rated list of clients hosts                  |
 | AURORA_IP       | IP of the host running Aurora                          |
 | MODE            | Mode to run the benchmarks (VM or DEFAULT)             |
 
@@ -314,7 +314,7 @@ artifact_evaluation directory:
 ```
 
 Once completed there should be a dependencies directory present in the artifact 
-evaluation directory, with the following directorys inside -- rocksdb, ycsb, 
+evaluation directory, with the following directories inside -- rocksdb, ycsb, 
 mutilate, filebench, progbg.
 
 **2. Recreating the Figures**
@@ -340,7 +340,7 @@ Location of Raw Data
 Raw data can be found in the directory specified by the OUT variable in the 
 `aurora.config` file (/aurora-data by default). Each workload has its own 
 sub-directory in this folder. Each part of the workload is divided further in 
-the workloads directory, finally each iteration of the workload is labelled as 
+the workloads directory, finally each iteration of the workload is labeled as 
 ITERATION.out, where ITERATION specifies the iteration number.
 
 An example file for the varmail benchmark found in Figure 3, for FFS would have 
@@ -401,13 +401,12 @@ a complex system of over 20K source lines of code.
 
 Paper Errata
 ------------
-Figure 3:
+**Figure 3:**
 The original paper submission for Figures 3c and 3d have incorrectly scaled 
 access for operations per second.  This has been corrected in the new paper and 
 does not change any relative results.
 
-Figure 3:
----------
+**Figure 3:**
 One stability bugfix (D339) has slowed our our small write path by 25-30% 
 (writes of <64 KiB).  The result is that FFS will come out ahead in the 4 KiB 
 sync write benchmark.
