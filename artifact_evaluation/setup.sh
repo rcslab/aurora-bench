@@ -196,6 +196,8 @@ setup_rocksdb()
 # Checks all dependencies needed on clients and main aurora host
 check_dependencies
 
+mkdir -p $MNT
+
 # Setup SLS Module
 cd $SRCROOT
 make clean > /dev/null
