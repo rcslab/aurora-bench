@@ -1,4 +1,4 @@
-#!/usr/local/bin/bash
+#!/usr/bin/env bash
 
 . helpers/util.sh
 . aurora.config
@@ -40,7 +40,11 @@ journal_iterate() {
     aurstripe 2> /dev/null > /dev/null
     # Create one VM object (i.e. mapped set of pages)
     # with the size given.
-    $SRCROOT/tests/journal/journal /dev/stripe/$STRIPENAME $1
+    if [ $MODE == "VM" ]; then
+	$SRCROOT/tests/journal/journal /dev/$MD $1
+    else
+	$SRCROOT/tests/journal/journal /dev/stripe/$STRIPENAME $1
+    fi
 
     aurunstripe 2> /dev/null > /dev/null
     sleep 2
@@ -64,11 +68,16 @@ print_size() {
 }
 
 setup_script
+
+if [ $MODE == "VM" ]; then
+  MD=`mdconfig -a -t malloc -s 2G`
+fi
+
 # Execute the microbenchmarks for sizes starting from
 # 4kiB (2 ^ 12 bytes)  to 1GiB (2 ^ 30 bytes), quadrupling 
 # (2 ^ 2) the size on each iteration.
 for POWER  in `seq 12 2 30`; do
-    SIZE=$((2 ** POWER))
+    SIZE=$((2 ** $POWER))
     print_size $POWER $SIZE
     printf `atomic_iterate $SIZE | cut -w -f 3 `
     printf "\t\t"
@@ -78,7 +87,9 @@ for POWER  in `seq 12 2 30`; do
     printf "\n "
 done
 
-
+if [ $MODE == "VM" ]; then
+  mdconfig -d -u `echo $MD | cut -b 3-`
+fi
 
 
 
