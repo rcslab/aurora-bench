@@ -6,6 +6,12 @@ AURORACTL=$SRCROOT/tools/slsctl/slsctl
 REDIS_PORT=9785
 REDIS_THREADS=12
 
+YCSB_ROOT=dependencies/ycsb-0.17.0
+YCSB=$YCSB_ROOT/bin/ycsb.sh
+CLIENT_ROOT=$AURORA_CLIENT_DIR/ycsb-0.17.0
+WORKLOAD=$CLIENT_ROOT/workloads/workloada
+YCSB_CLIENT=$CLIENT_ROOT/bin/ycsb.sh
+
 
 run_redis_ycsb()
 {
@@ -19,9 +25,6 @@ run_redis_ycsb()
     fi
 
     kill -TERM `pidof redis-server` 2> /dev/null > /dev/null
-
-    YCSB_ROOT=dependencies/ycsb-0.17.0
-    YCSB=$YCSB_ROOT/bin/ycsb.sh
 
     echo "[Aurora] Starting Redis Server at $AURORA_REDIS_URL"
     echo "[Aurora] Starting Redis Server at $AURORA_REDIS_URL" >> $LOG
@@ -58,9 +61,6 @@ run_redis_ycsb()
 	$AURORACTL checkpoint -o 1 -r >> $LOG 2>> $LOG
     fi
 
-    CLIENT_ROOT=$AURORA_CLIENT_DIR/ycsb-0.17.0
-    WORKLOAD=$CLIENT_ROOT/workloads/workloada
-    YCSB_CLIENT=$CLIENT_ROOT/bin/ycsb.sh
     set -- $EXTERNAL_HOSTS
     while [ -n "$1" ];
     do
@@ -132,6 +132,26 @@ run_aurora()
 
 }
 
+check_ycsb_install()
+{
+    $YCSB > /dev/null 2> /dev/null
+    if [ $? != 1 ];then
+	echo "YCSB Client not found on current machine - please retry setup.sh"
+	exit 1
+    fi
+
+    set -- $EXTERNAL_HOSTS
+    while [ -n "$1" ];
+    do
+	ssh $1 "$YCSB_CLIENT" > /dev/null 2> /dev/null
+	if [ $? != 1 ];then
+	    echo "YCSB Client not found on host($1) - please retry setup.sh"
+	    exit 1
+	fi
+	shift
+    done
+}
+
 mkdir -p $OUT/redis
 mkdir -p $AURORA_REDIS_DIR
 setup_script
@@ -148,6 +168,7 @@ echo "Running with $MAX_ITER iterations"
 sed "s/PASSWORD/$AURORA_REDIS_PASSWORD/g; s/URL/$AURORA_REDIS_URL/g; s/DIR/$AURORA_REDIS_DIR_SED/g;" \
     helpers/redis.conf.template > redis.conf
 
+check_ycsb_install
 clear_log
 
 run_base 

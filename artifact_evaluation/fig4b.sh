@@ -143,7 +143,31 @@ run_aurora()
     echo "[Aurora] Done running memcached with Aurora"
 }
 
+
+check_mutilate_install()
+{
+    $MUTILATE -h > /dev/null 2> /dev/null
+    if [ $? != 0 ];then
+	    echo "[Aurora] Mutilate agent not installed on current machine - please re-run setup.sh"
+	    exit 1
+    fi
+
+    set -- $EXTERNAL_HOSTS
+    while [ -n "$1" ];
+    do
+	ssh $1 "cd $AURORA_CLIENT_DIR/mutilate; ./mutilate -h" > /dev/null 2> /dev/null
+	if [ $? != 0 ];then
+		echo "[Aurora] Mutilate agent not installed on host($1) - please re-run setup.sh"
+		exit 1
+	fi
+	shift
+    done
+
+}
 setup_script
+
+check_mutilate_install
+
 clear_log
 if [ "$MODE" = "VM" ]; then
 	MAX_ITER=1
@@ -151,6 +175,7 @@ else
 	MAX_ITER=9
 fi
 echo "[Aurora] Running with $MAX_ITER iterations"
+
 
 run_base
 

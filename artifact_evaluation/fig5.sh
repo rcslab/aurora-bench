@@ -85,15 +85,29 @@ stripe_setup_wal()
 {
     CKPT_FREQ=$1
 
-    gstripe load
-    gstripe stop "$STRIPENAME"
-    gstripe stop "st1"
+    gstripe load > /dev/null 2> /dev/null
+    gstripe stop "$STRIPENAME" > /dev/null 2> /dev/null
+    gstripe stop "st1" > /dev/null 2> /dev/null
 
     # Sets up the two stripes needed for the RocksDB Aurora benchmark 
     # STRIPENAME is the default stripe used by all benchmarks which is used by the SLS and SLOS
     # The secondary stripe "st1" is used for the persistent storage for the WAL.
     # During operation operatiosn are written to the WAL (which is on st1), when this wal fills, Aurora
-    gstripe create -s "$STRIPESIZE" -v "$STRIPENAME" $ROCKS_STRIPE1
+    set -- $ROCKS_STRIPE1
+    if [ $# -gt 1 ]; then
+	gstripe create -s "$STRIPESIZE" -v "$STRIPENAME" $ROCKS_STRIPE1
+	DISK="stripe/$STRIPENAME"
+    else
+	if [ "$MODE" != "VM" ]; then
+		MAX_ITER=0
+		MIN_FREQ=100
+	fi
+	echo "[Aurora] Single device detected ($ROCKS_STRIPE1) Reducing period ($MIN_FREQ ms)"
+	DISK=$ROCKS_STRIPE1
+	# We are using 1 disk so we cannot keep up with checkpointing at 100Hz
+    fi
+    DISKPATH="/dev/$DISK"
+
     set -- $ROCKS_STRIPE2
     if [ $# -gt 1 ]; then
 	gstripe create -s "$STRIPESIZE" -v "st1" $ROCKS_STRIPE2
@@ -103,25 +117,22 @@ stripe_setup_wal()
     fi
 
 
-    DISK="stripe/$STRIPENAME"
-    DISKPATH="/dev/$DISK"
-
     aursetup
     if [ -z "$CKPT_FREQ" ]; then
-	    sysctl aurora_slos.checkpointtime=$CKPT_FREQ
+	    sysctl aurora_slos.checkpointtime=$CKPT_FREQ > /dev/null
     else
-	    sysctl aurora_slos.checkpointtime=$MAX_FREQ
+	    sysctl aurora_slos.checkpointtime=$MAX_FREQ > /dev/null
     fi
 
 }
 
 stripe_teardown_wal()
 {
-    aurteardown
+    umount /testmnt/dev > /dev/null 2> /dev/null
 
-    aurunstripe
-    gstripe destroy "st1"
-    umount /testmnt/dev > /dev/null 2> /testmnt/dev
+    aurteardown 2> /dev/null
+    aurunstripe 2> /dev/null
+    gstripe destroy "st1" 2> /dev/null
     rm /dev/wal
 }
 
@@ -201,6 +212,21 @@ if [ "$MODE" = "VM" ]; then
 else
 	MAX_ITER=0
 fi
+
+set -- $ROCKS_STRIPE1
+if [ $# -eq 0 ]; then
+	echo "[Aurora] RocksDB Requires at least 1 disk set (Virtual or otherwise) for ROCKS_STRIPE1"
+	exit 1
+fi
+
+set -- $ROCKS_STRIPE2
+if [ $# -eq 0 ]; then
+	echo "[Aurora] RocksDB Requires at least 1 disk set (Virtual or
+	otherwise) for ROCKS_STRIPE2 which is different from ROCKS_STRIPE1" 
+	exit 1
+fi
+
+
 echo "[Aurora] Running with $MAX_ITER iterations"
 
 mkdir -p $OUT/rocksdb
