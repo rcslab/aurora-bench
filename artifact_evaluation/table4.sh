@@ -17,12 +17,8 @@ run_posix() {
     cleanup
     for ITER in `seq 0 $MAX_ITER`
     do
-	    #if check_completed $DIR/$ITER.out; then
-	    #    continue
-	    #fi
-
 	    echo "[Aurora] Running Posix: Iteration $ITER"
-	    setup_aurora 
+	    setup_aurora
 	    $SRCROOT/scripts/posix.d > /tmp/out 2> /tmp/out &
 	    sleep 1
 	    $SRCROOT/tests/posix/posix 1 $MNT
@@ -33,7 +29,11 @@ run_posix() {
 	    cleanup
 	    mv /tmp/out $DIR/$ITER.out
     done
+
+    cp $DIR/0.out graphs/table4.txt
 }
+
+MAX_ITER=0
 
 setup_script
 run_posix

@@ -59,13 +59,14 @@ setup_aurora()
 {
 	aurteardown > /dev/null 2>/dev/null
 	$SETUP_FUNC  > /dev/null 2> /dev/null
+	aursetup
 
-	if [ -z "$1" ]; then
+	if [ $# -eq 1 ]; then
 		sysctl aurora_slos.checkpointtime=$1
 	else
 		sysctl aurora_slos.checkpointtime=$MIN_FREQ
 	fi
-	aursetup
+
 }
 
 teardown_aurora()

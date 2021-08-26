@@ -34,6 +34,7 @@ db_bench() {
 	--num=$ROCKSDB_NUM \
 	--key_size=48 \
 	--db=/testmnt/tmp-db \
+	--wal_dir=/testmnt/wal \
 	--duration=$ROCKSDB_DUR \
 	--histogram=1 \
 	--write_buffer_size=$((16 << 30)) \
@@ -156,8 +157,6 @@ run_aurora_nowal()
 	FUNC_PID="$!"
 	if [ "$MODE" = "VM" ]; then
 		sleep 2
-	else
-		sleep 15
 	fi
 
 	pid=`pidof db_bench`

@@ -8,14 +8,17 @@ export SRCROOT
 export BENCHROOT
 
 # Create 
-createmd
 . $SRCROOT/tests/aurora
+
+aurteardown > /dev/null 2> /dev/null
+
+createmd
 
 DSCRIPT="$SRCROOT/scripts/ckpt.d"
 REDISSRV="redis-server"
 CONF="redis.freebsd.conf"
-TMPFILE="redisinput"
-DPATH="dtrace.output"
+TMPFILE="$OUT/redisinput"
+DPATH="$OUT/dtrace.output"
 # Add 50 MB of data to Redis. Redis has massive write amplification,
 # with its resident set size typically ballooning to 10x the amount
 # of data being inserted to it for a total memory usage of around 500MB.
@@ -47,7 +50,7 @@ REDISPID="$( pidof redis-server )"
 echo "PID is $REDISPID"
 
 # For some reason, directly piping redisgen.py breaks the pipe.
-python3 "$BENCHROOT/redisgen.py" "$SIZE"  > "$TMPFILE"
+python3 "$BENCHROOT/artifact_evaluation/table7-aurora/redisgen.py" "$SIZE"  > "$TMPFILE"
 cat "$TMPFILE" | redis-cli --pipe 
 rm "$TMPFILE"
 
@@ -60,15 +63,25 @@ kill $DTRACEPID
 # Wait for the workload to die so that the unmount succeeds.
 sleep 1
 
-cat $DPATH | grep "Metadata copy"  | sed "s/Metadata copy/Metadata copy/"
-cat $DPATH | grep "Shadowing the objects" | sed "s/Shadowing the objects/Data copy/"
-cat $DPATH | grep "Application stop time" | sed "s/Application stop time\t/Total Stop Time/"
-cat $DPATH | grep "Task IO" | sed "s/Task IO\t\t/Write Time/"
+echo ""
+echo "[Aurora] Aurora VS CRIU - Table 7, Aurora Column"
+echo "================================================"
+OUTFILE=../graphs/table7-aurora-column.txt
+cat $DPATH | grep "Metadata copy"  | sed "s/Metadata copy/Metadata copy/"  >  $OUTFILE
+cat $DPATH | grep "Shadowing the objects" | sed "s/Shadowing the objects/Data copy		/" >> $OUTFILE
+cat $DPATH | grep "Application stop time" | sed "s/Application stop time\t/Total Stop Time/" >> $OUTFILE
+cat $DPATH | grep "Task IO" | sed "s/Task IO\t\t/Write Time/" >> $OUTFILE
 
-echo "Wrote $(( $( sysctl -n aurora.data_sent ) + \
+cat $OUTFILE
+
+echo ""
+
+echo "[Aurora] Wrote $(( $( sysctl -n aurora.data_sent ) + \
     $( sysctl -n aurora.data_received ) )) bytes"
 
-umount "$MNT/dev"
+echo "[Aurora] Tearing down"
+aurteardown > /dev/null 2> /dev/null
+umount "$MNT/dev" > /dev/null 2> /dev/null
 slsunmount > /dev/null 2>/dev/null
 unloadsls > /dev/null 2>/dev/null
 unloadslos >/dev/null 2>/dev/null

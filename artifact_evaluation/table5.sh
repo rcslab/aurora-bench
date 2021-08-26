@@ -37,21 +37,14 @@ journal_iterate() {
     # Same structure as atomic_iterate().
     sleep 1
 
-    aurstripe 2> /dev/null > /dev/null
+    $SETUP_FUNC > /dev/null 2> /dev/null
     # Create one VM object (i.e. mapped set of pages)
     # with the size given.
-    if [ $MODE == "VM" ]; then
-	$SRCROOT/tests/journal/journal /dev/$MD $1
-    else
-	$SRCROOT/tests/journal/journal /dev/stripe/$STRIPENAME $1
-    fi
+    $SRCROOT/tests/journal/journal $DISKPATH $1
 
-    aurunstripe 2> /dev/null > /dev/null
+    $TEARDOWN_FUNC $DISKPATH > /dev/null 2> /dev/null
     sleep 2
 }
-
-printf "FIGURE 4 Numbers\n"
-printf "SIZE(Bytes)\tINCREMENTAL\tATOMIC\tJOURNAL\n"
 
 print_size() {
     POWER=$1
@@ -69,28 +62,26 @@ print_size() {
 
 setup_script
 
-if [ $MODE == "VM" ]; then
-  MD=`mdconfig -a -t malloc -s 2G`
-fi
+DIR=graphs/table5.txt
 
+printf "Table 4\n" > $DIR
+printf "=======\n\n" >> $DIR
+printf "SIZE(Bytes)\tINCREMENTAL\tATOMIC\tJOURNAL\n" >> $DIR
 # Execute the microbenchmarks for sizes starting from
 # 4kiB (2 ^ 12 bytes)  to 1GiB (2 ^ 30 bytes), quadrupling 
 # (2 ^ 2) the size on each iteration.
 for POWER  in `seq 12 2 30`; do
     SIZE=$((2 ** $POWER))
-    print_size $POWER $SIZE
-    printf `atomic_iterate $SIZE | cut -w -f 3 `
-    printf "\t\t"
-    printf `incremental_iterate $SIZE | cut -w -f 4`
-    printf "\t"
-    printf `journal_iterate $SIZE`
-    printf "\n "
+    print_size $POWER $SIZE >> $DIR
+    printf `atomic_iterate $SIZE | cut -w -f 3 ` >> $DIR
+    printf "\t\t" >> $DIR
+    printf `incremental_iterate $SIZE | cut -w -f 4` >> $DIR
+    printf "\t" >> $DIR
+    printf `journal_iterate $SIZE` >> $DIR
+    printf "\n " >> $DIR
+    echo "[Aurora] Done objects of size $(print_size $POWER $SIZE)"
 done
 
-if [ $MODE == "VM" ]; then
-  mdconfig -d -u `echo $MD | cut -b 3-`
-fi
 
-
-
-
+echo "[Aurora] Done, table also found at $(pwd)/$DIR"
+cat $DIR
