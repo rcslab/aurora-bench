@@ -10,6 +10,8 @@ export BENCHROOT
 # Create 
 . $SRCROOT/tests/aurora
 
+mkdir -p ../graphs
+
 aurteardown > /dev/null 2> /dev/null
 
 createmd

@@ -384,7 +384,45 @@ startup.  On custom installed machines this should be unnecessary.
 
 Running CRIU
 ------------
-Here is where we put CRIU Stuff
+
+The results for Table 7, and by extension Table 1, are taken from a FreeBSD machine
+for the Aurora column and a Debian 10 image for the Linux column. 
+
+The FreeBSD machine needs to be set up by running the ~/update.sh and 
+~/sls-bench/setup.sh scripts. The user then executes the following commands:
+
+```
+cd ~/sls-bench/artifact_evaluation/table7-aurora
+./redis-aurora.sh
+```
+
+The benchmark creates a Redis instance and uses a local script, ./redisbench.py, 
+to fill it in with data. The script inserts about 50MB of data to Redis, causing
+its working set to reach about 500MB because of write amplification. The script then 
+checkpoints the database and extracts the table's numbers from Aurora's DTrace scripts.
+The numbers are printed to standard output, and are in nanoseconds. The SLOS in this 
+experiment is backed by a ramdisk.
+
+
+Setting up the Linux image is done by running as root, inserting this repository
+in the /root directory, then executing the setup script:
+
+```
+cd ~/sls-bench/artifact_evaluation/table7-criu
+./setup.sh
+```
+
+The setup script downloads Redis, then builds and installs CRIU after downloading 
+all dependencies. Executing the benchmark is then done using the command:
+
+```
+./redis-criu.sh
+```
+
+The script does identical work to the FreeBSD one, using CRIU instead of Aurora
+to checkpoint the server. The CRIU files are stored on a tmpfs mount.
+The results are printed on the terminal.
+
 
 Additional Information
 ======================
