@@ -3,7 +3,7 @@ The Aurora Single Level Store Operating System
 =============================================
 SOSP 2021  Artifact Submission
 ------------------------------
-Authors: Emil Tsalapatis, Ryan Hancock, Tavian Barnes, Ali José Mashtizadeh*
+Authors: Emil Tsalapatis, Ryan Hancock, Tavian Barnes, Ali José Mashtizadeh
 ---------------------------------------------------------------------------
 
 *[Reliable Computer Systems Lab](https://rcs.uwaterloo.ca/)*
@@ -22,6 +22,10 @@ Requirements
  * 4 x Intel 900P Optane SSD (250 GiB each, 1 TiB Total) for the Aurora host
  * 10 Gbps NICs (we tested with X722 NICs) on all machine
  * 6 hosts for redis/YCSB and memcached/mutilate benchmarks (1 for Aurora, 5 for clients)
+
+WARNING: Our benchmarks scripts require either 2 or 4 NVMe disks to run.  
+Slower storage might lead to system instability that can be resolved by 
+reducing the checkpoint rate or by using VM mode described below.
 
 Please see https://www.freebsd.org/releases/12.1R/hardware/ for hardware 
 compatibility.  The paper version of Aurora is based off of FreeBSD 12.1 
@@ -305,7 +309,8 @@ aurora.config).
 WARNING: For machines that do comply with our minimum requirements or are 
 slower the DEFAULT MODE flag is not expected to work correctly and may lead to 
 hangs.  The VM flag is a reduces the sizes and dependencies for correctness 
-runs, but performance numbers will not match.
+runs, but performance numbers will not match.  VM mode still requires a minimum 
+of two virtual disks or memory disks (see mdconfig(8)).
 
 Once this has been properly configured, run the following in the 
 artifact_evaluation directory:
@@ -315,7 +320,9 @@ artifact_evaluation directory:
 
 Once completed there should be a dependencies directory present in the artifact 
 evaluation directory, with the following directories inside -- rocksdb, ycsb, 
-mutilate, filebench, progbg.
+mutilate, filebench, progbg.  YCSB and Mutilate will be installed and built on 
+all remote machines used for driving the load in AURORA_CLIENT_DIR (/tmp by 
+default).
 
 **2. Recreating the Figures**
 
