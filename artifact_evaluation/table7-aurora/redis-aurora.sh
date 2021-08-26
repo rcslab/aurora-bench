@@ -63,11 +63,12 @@ kill $DTRACEPID
 # Wait for the workload to die so that the unmount succeeds.
 sleep 1
 
-echo ""
-echo "[Aurora] Aurora VS CRIU - Table 7, Aurora Column"
-echo "================================================"
 OUTFILE=../graphs/table7-aurora-column.txt
-cat $DPATH | grep "Metadata copy"  | sed "s/Metadata copy/Metadata copy/"  >  $OUTFILE
+echo "" > $OUTFILE
+echo "[Aurora] Aurora VS CRIU - Table 7, Aurora Column (Time in NANOSECONDS)" >> $OUTFILE
+echo "======================================================================" >> $OUTFILE
+
+cat $DPATH | grep "Metadata copy"  | sed "s/Metadata copy/Metadata copy/"  >>  $OUTFILE
 cat $DPATH | grep "Shadowing the objects" | sed "s/Shadowing the objects/Data copy		/" >> $OUTFILE
 cat $DPATH | grep "Application stop time" | sed "s/Application stop time\t/Total Stop Time/" >> $OUTFILE
 cat $DPATH | grep "Task IO" | sed "s/Task IO\t\t/Write Time/" >> $OUTFILE
