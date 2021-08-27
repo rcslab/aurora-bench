@@ -148,16 +148,13 @@ run_aurora_nowal()
 	    continue
 	fi
 
-	echo "[Aurora] Running Rocksdb SLS: No WAL, Iteration $ITER"
+	echo "[Aurora] Running Rocksdb SLS: No WAL, Iteration $ITER ($MIN_FREQ)"
 	rm /tmp/out 2> /dev/null > /dev/null
 	stripe_setup_wal $MAX_FREQ >> $LOG 2>> $LOG
 	$AURORACTL partadd -o 1 -d -t $MIN_FREQ -b $BACKEND >> $LOG 2>> $LOG
 
 	db_bench baseline --sync=false --disable_wal=true > /tmp/out &
 	FUNC_PID="$!"
-	if [ "$MODE" = "VM" ]; then
-		sleep 2
-	fi
 
 	pid=`pidof db_bench`
 	$AURORACTL attach -o 1 -p $pid 2>> $LOG >> $LOG
