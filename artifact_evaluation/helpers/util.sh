@@ -62,9 +62,9 @@ setup_aurora()
 	aursetup
 
 	if [ $# -eq 1 ]; then
-		sysctl aurora_slos.checkpointtime=$1
+		sysctl aurora_slos.checkpointtime=$1 >/dev/null 2>/dev/null
 	else
-		sysctl aurora_slos.checkpointtime=$MIN_FREQ
+	    sysctl aurora_slos.checkpointtime=$MIN_FREQ >/dev/null 2>/dev/null
 	fi
 
 }

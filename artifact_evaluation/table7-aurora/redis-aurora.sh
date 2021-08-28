@@ -14,6 +14,7 @@ mkdir -p ../graphs
 
 aurteardown > /dev/null 2> /dev/null
 
+createroot
 createmd
 
 DSCRIPT="$SRCROOT/scripts/ckpt.d"
@@ -37,7 +38,7 @@ export MNT
 
 # Create the absolute minimal root for Redis
 aursetup
-installminroot
+installroot
 
 # The output of dtrace is piped to the proper file by the parent script.
 $DSCRIPT > $DPATH &

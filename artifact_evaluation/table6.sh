@@ -1,6 +1,5 @@
 #!/usr/local/bin/bash
 
-SRCROOT="/root/sls"
 . helpers/util.sh
 
 export LC_ALL=C.UTF-8
@@ -43,9 +42,6 @@ base_checkpoint_restore()
 	BACKEND=$3
 	IS_DELTA=$4
 
-	#printf "(NAME, PID, BACKEND, IS_DELTA) IS (%s, %s, %s, %s)\n" $NAME $PID $BACKEND $IS_DELTA
-
-	#printf "RSS is %s\n" `getrss $1`
 	if [ $IS_DELTA == "yes" ]; then
 	    $SLSCTL partadd -o "$OID" -l -b $BACKEND
 	else 
@@ -59,7 +55,6 @@ base_checkpoint_restore()
 	    sleep $SLEEPTIME
 	fi
 
-	#$SRCROOT/scripts/ckpt.d &
 	$SRCROOT/scripts/ckpt.d > $TMPCKPT 2> $TMPCKPT &
 	sleep $SLEEPTIME
 
@@ -71,7 +66,6 @@ base_checkpoint_restore()
 	pkill -SIGTERM $NAME  >/dev/null 2>/dev/null
 	kill -SIGTERM $PID > /dev/null 2>/dev/null
 	sleep 2
-	#$SRCROOT/scripts/rest.d &
 	$SRCROOT/scripts/rest.d > $TMPREST 2> $TMPREST &
 	sleep $SLEEPTIME
 	NS=`cat $TMPCKPT | grep "Application stop time" | rev | cut -w -f 1 | rev | tr -d '\n'`
@@ -116,26 +110,24 @@ delta_checkpoint_lazy_restore()
 }
 
 run_firefox() {
-	aurteardown >/dev/null 2>/dev/null
-	aursetup >/dev/null 2>/dev/null
+	teardown_aurora
+	setup_aurora
 	./dlroot.sh >/dev/null 2>/dev/null
-	chroot $MNT firefox -headless -P artifact >/dev/null 2>/dev/null &
+	LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib" chroot $MNT firefox -headless -createprofile artifact  >/dev/null 2>/dev/null &
+	LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib" chroot $MNT firefox -headless -P artifact >/dev/null 2>/dev/null &
 	sleep $SLEEPTIME
 }
 
 test_firefox() {
-    firefox -headless -createprofile artifact >/dev/null 2>/dev/null
     printf "firefox\t"
     run_firefox
     PID=`ps | grep " firefox" | grep -v grep | cut -w -f 1`
     memory_checkpoint_memory_restore $PID "firefox"
 
-    firefox -headless -createprofile artifact >/dev/null 2>/dev/null
     run_firefox 
     PID=`ps | grep " firefox" | grep -v grep | cut -w -f 1`
     full_checkpoint_full_restore	$PID "firefox"
 
-    firefox -headless -createprofile artifact >/dev/null 2>/dev/null
     run_firefox 
     PID=`ps | grep " firefox" | grep -v grep | cut -w -f 1`
     delta_checkpoint_lazy_restore	$PID "firefox"
@@ -143,8 +135,8 @@ test_firefox() {
 }
 
 run_mosh() {
-	aurteardown >/dev/null 2>/dev/null
-	aursetup >/dev/null 2>/dev/null
+	teardown_aurora
+	setup_aurora
 	./dlroot.sh >/dev/null 2>/dev/null
 	LANG=C.UTF-8 chroot $MNT mosh-server >$MOSHTMP 2> $MOSHTMP &
 	sleep $SLEEPTIME
@@ -170,8 +162,8 @@ test_mosh() {
 }
 
 run_pillow() {
-	aurteardown >/dev/null 2>/dev/null
-	aursetup >/dev/null 2>/dev/null
+	teardown_aurora
+	setup_aurora
 	./dlroot.sh >/dev/null 2>/dev/null
 	cp -r $PILLOWDIR $MNT/root/
 	chroot $MNT /root/pillow-perf/testsuite/run.py --runs 10000 scale > /dev/null 2> /dev/null &
@@ -192,10 +184,10 @@ test_pillow() {
 }
 
 run_tomcat() {
-	aurteardown >/dev/null 2>/dev/null
-	aursetup >/dev/null 2>/dev/null
-	installroot >/dev/null 2>/dev/null
-	chroot $MNT /usr/local/apache-tomcat-9.0/bin/startup.sh >/dev/null 2>/dev/null &
+	teardown_aurora
+	setup_aurora
+	./dlroot.sh >/dev/null 2>/dev/null
+	LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib" JRE_HOME="/usr/local/openjdk8" chroot $MNT /usr/local/apache-tomcat-9.0/bin/startup.sh >/dev/null 2>/dev/null & 
 	sleep $SLEEPTIME
 }
 
@@ -213,10 +205,10 @@ test_tomcat() {
 }
 
 run_vim() {
-	aurteardown >/dev/null 2>/dev/null
-	aursetup >/dev/null 2>/dev/null
+	teardown_aurora
+	setup_aurora
 	./dlroot.sh >/dev/null 2>/dev/null
-	chroot $MNT tmux new-session -d 'vim -c stop' 
+	LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib" chroot $MNT tmux new-session -d 'vim -c stop' >/dev/null 2>/dev/null
 	sleep $SLEEPTIME
 }
 
@@ -233,14 +225,13 @@ test_vim() {
     printf "\n"
 }
 
-. $SRCROOT/tests/aurora
-createmd >/dev/null 2>/dev/null
-aurteardown >/dev/null 2>/dev/null
-aursetup >/dev/null 2>/dev/null
+setup_script
+setup_aurora
 
 printf "Name\tMemory Ckpt\tMemory Restore\tFull Ckpt\tFull Restore\tIncremental Ckpt\tLazy Restore\n"
-test_firefox
 test_vim
 test_mosh
-test_pillow test_tomcat
-aurteardown>/dev/null 2>/dev/null
+test_pillow 
+test_tomcat
+test_firefox
+teardown_aurora

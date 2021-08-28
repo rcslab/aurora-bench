@@ -23,6 +23,11 @@ setup_filebench()
     cd -
 }
 
+setup_pillow_perf()
+{
+    git clone https://github.com/python-pillow/pillow-perf.git dependencies/pillow-perf
+}
+
 setup_mutilate()
 {
     echo "[Aurora] Setting up mutilate"
@@ -225,6 +230,10 @@ setup_filebench > /dev/null
 # Sets up the python library used to create graphs
 echo "[Aurora] Setting up progbg"
 setup_prog > /dev/null
+
+# Grabs the Pillow performance suite
+echo "[Aurora] Setting up pillow-perf"
+setup_pillow_perf > /dev/null
 
 # Fetches and compiled mutilate on host and all clients
 echo "[Aurora] Setting up mutilate"
