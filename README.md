@@ -456,3 +456,7 @@ One stability bugfix (D339) has slowed our our small write path by 25-30%
 (writes of <64 KiB).  The result is that FFS will come out ahead in the 4 KiB 
 sync write benchmark.
 
+**Figure 6**
+
+The Firefox numbers in the paper were taken using an older version of Firefox whose working set 
+was around 679MB, while the artifact includes a version with a working set of 280MB. The overheads of data checkpointing are proportionally lower, while the overhead of metadata checkpointing stays the same (about 3ms).
