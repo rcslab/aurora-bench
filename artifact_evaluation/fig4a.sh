@@ -155,7 +155,7 @@ check_ycsb_install()
     set -- $EXTERNAL_HOSTS
     while [ -n "$1" ];
     do
-	ssh $1 "stat $YCSB" > /dev/null 2> /dev/null
+	ssh $1 "stat $YCSB_CLIENT" > /dev/null 2> /dev/null
 	if [ $? != 0 ];then
 	    echo "YCSB Client not found on host($1) - please retry setup.sh"
 	    exit 1
