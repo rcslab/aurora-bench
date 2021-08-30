@@ -172,7 +172,7 @@ clear_log
 if [ "$MODE" = "VM" ]; then
 	MAX_ITER=1
 else
-	MAX_ITER=9
+	MAX_ITER=2
 fi
 echo "[Aurora] Running with $MAX_ITER iterations"
 

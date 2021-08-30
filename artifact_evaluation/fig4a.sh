@@ -62,9 +62,22 @@ run_redis_ycsb()
     fi
 
     set -- $EXTERNAL_HOSTS
+    EXTERNAL_HOSTS="$1"
+
+    set -- $EXTERNAL_HOSTS
     while [ -n "$1" ];
     do
-	ssh $1 "$YCSB_CLIENT run redis -P $WORKLOAD $SERVER $PORT $PASS $THREADS $OPS" > /tmp/$1.log 2> /dev/null &
+	mkfifo /tmp/$1.fifo
+	ssh $1 < /tmp/$1.fifo > /tmp/$1.log 2>> $LOG &
+	shift
+    done
+
+    sleep 2
+
+    set -- $EXTERNAL_HOSTS
+    while [ -n "$1" ];
+    do
+	echo "$YCSB_CLIENT run redis -P $WORKLOAD $SERVER $PORT $PASS $THREADS $OPS" > /tmp/$1.fifo
 	shift
     done
 
@@ -89,6 +102,7 @@ run_redis_ycsb()
 
 	# Just making sure we dont accidently use this file somewhere although it shouldn't
 	rm /tmp/$1.log
+	rm /tmp/$1.fifo
 	shift
     done
 }
@@ -127,6 +141,12 @@ run_aurora()
 
 check_ycsb_install()
 {
+    stat $YCSB > /dev/null 2> /dev/null
+    if [ $? != 0 ];then
+	echo "YCSB Client not found on current machine - please retry setup.sh"
+	exit 1
+    fi
+
     $YCSB > /dev/null 2> /dev/null
     if [ $? != 1 ];then
 	echo "YCSB Client not found on current machine - please retry setup.sh"
@@ -136,6 +156,12 @@ check_ycsb_install()
     set -- $EXTERNAL_HOSTS
     while [ -n "$1" ];
     do
+	ssh $1 "stat $YCSB" > /dev/null 2> /dev/null
+	if [ $? != 0 ];then
+	    echo "YCSB Client not found on host($1) - please retry setup.sh"
+	    exit 1
+	fi
+
 	ssh $1 "$YCSB_CLIENT" > /dev/null 2> /dev/null
 	if [ $? != 1 ];then
 	    echo "YCSB Client not found on host($1) - please retry setup.sh"
@@ -152,7 +178,7 @@ setup_script
 if [ "$MODE" = "VM" ]; then
 	MAX_ITER=1
 else
-	MAX_ITER=9
+	MAX_ITER=2
 fi
 echo "Running with $MAX_ITER iterations"
 
