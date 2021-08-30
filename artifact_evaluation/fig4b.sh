@@ -37,7 +37,7 @@ run_memcached()
     PIDFILE="-P $MEMCACHED_PIDFILE"
     CONNECTIONS="-c $MEMCACHED_CONNECTIONS"
 
-    timeout 60s memcached $USER $ADDRESS $THREADS $PORT_A $PIDFILE $CONNECTIONS &
+    memcached $USER $ADDRESS $THREADS $PORT_A $PIDFILE $CONNECTIONS &
     PID=`pidof memcached`
 
     if [ "$SLS" = "on" ]; then
@@ -121,6 +121,7 @@ run_base()
 	fi
 	echo "[Aurora] Running memcached base: $ITER"
 	run_memcached "base" $ITER >> $LOG 2>> $LOG
+	sleep 20
     done
     echo "[Aurora] Done running memcached base"
 
@@ -138,6 +139,7 @@ run_aurora()
 	    fi
 	    echo "[Aurora] Running memcached with Aurora: Checkpoint period $f, Iteration $ITER"
 	    run_memcached "$f" $ITER $f >> $LOG 2>> $LOG
+	    sleep 20
 	done
     done
     echo "[Aurora] Done running memcached with Aurora"

@@ -162,6 +162,7 @@ check_dependencies()
     # Dependencies for rocksdb
     check_library "snappy"
     check_library "gflags"
+    check_library "libzmq.so.1" $1 # Required to compile mutilate
 
     set -- $EXTERNAL_HOSTS
     while [ -n "$1" ];
