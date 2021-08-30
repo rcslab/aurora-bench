@@ -41,12 +41,12 @@ setup_script()
 	    BACKEND="slos"
 
 	    # YCSB Benchmark Values
-	    REDIS_OP_COUNT=100000
-	    REDIS_RECORD_COUNT=10000
+	    REDIS_OP_COUNT=1000000
+	    REDIS_RECORD_COUNT=100000
 
 	    # Memcached Benchmark Values
 	    MUTILATE_QPS=1000
-	    MUTILATE_TARGET_QPS=200000
+	    MUTILATE_TARGET_QPS=400000
 	    MUTILATE_TIME=15
 
 	    # RocksDB Benchmark Values

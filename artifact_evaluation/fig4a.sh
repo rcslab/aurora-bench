@@ -81,23 +81,16 @@ run_redis_ycsb()
 
     mkdir -p $OUT/redis/$CHILD_DIR
 
-    touch /tmp/out
-
     set -- $EXTERNAL_HOSTS
     while [ -n "$1" ];
     do
-	cat /tmp/$1.log >> /tmp/out
-
-	mv /tmp/out $OUT/redis/$CHILD_DIR/$ITER.out
+	cat /tmp/$1.log >> $OUT/redis/$CHILD_DIR/$ITER.out
 	fsync $OUT/redis/$CHILD_DIR/$ITER.out
 
 	# Just making sure we dont accidently use this file somewhere although it shouldn't
 	rm /tmp/$1.log
 	shift
     done
-
-    rm /tmp/out 2> /dev/null > /dev/null
-
 }
 
 
@@ -179,6 +172,7 @@ PYTHONPATH=$PYTHONPATH:$(pwd)/dependencies/progbg
 export PYTHONPATH
 export OUT
 export MODE
+export EXTERNAL_HOSTS
 echo "[Aurora] Creating Fig4a Graph"
 python3.7 -m progbg graphing/fig4a.py
 
