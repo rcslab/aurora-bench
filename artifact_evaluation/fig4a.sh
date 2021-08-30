@@ -12,6 +12,8 @@ CLIENT_ROOT=$AURORA_CLIENT_DIR/ycsb-0.17.0
 WORKLOAD=$CLIENT_ROOT/workloads/workloada
 YCSB_CLIENT=$CLIENT_ROOT/bin/ycsb.sh
 
+set -- $EXTERNAL_HOSTS
+EXTERNAL_HOSTS="$1"
 
 run_redis_ycsb()
 {
@@ -60,9 +62,6 @@ run_redis_ycsb()
     if [ "$SLS" = "on" ]; then
 	$AURORACTL checkpoint -o 1 -r >> $LOG 2>> $LOG
     fi
-
-    set -- $EXTERNAL_HOSTS
-    EXTERNAL_HOSTS="$1"
 
     set -- $EXTERNAL_HOSTS
     while [ -n "$1" ];
