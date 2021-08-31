@@ -1,0 +1,43 @@
+#!/bin/sh
+
+MNT="/testmnt"
+
+MINIFIED_ROOTFS="$BENCHROOT/minroot.tar.gz"
+ROOTFS="$BENCHROOT/root.tar.gz"
+
+createmd()
+{
+    MDDISK=`mdconfig -a -t malloc -s 50g`
+    DISK="$MDDISK"
+    DISKPATH="/dev/$MDDISK"
+}
+
+destroymd()
+{
+    mdconfig -d -u $1
+}
+
+createroot()
+{
+    if [ ! -f "$ROOTFS" ]; then
+	$BENCHROOT/minroot/rootcreate.sh
+    fi
+    if [ ! -f "$ROOTFS" ]; then
+	echo "Failed to create root image for testing!"
+	exit 1
+    fi
+    $BENCHROOT/minroot/rootminify.sh
+}
+
+installroot()
+{
+    # Unpack the root into the mount if it exists
+    tar -C "$MNT" -xf "$ROOTFS"
+}
+
+
+installminroot()
+{
+    # Unpack the root into the mount if it exists
+    tar -C "$MNT" -xf "$MINIFIED_ROOTFS"
+}

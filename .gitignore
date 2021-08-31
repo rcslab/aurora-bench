@@ -27,3 +27,5 @@ artifact_evaluation/graphs/*
 artifact_evaluation/redis.conf
 
 base.txz
+root.tar.gz
+minroot.tar.gz

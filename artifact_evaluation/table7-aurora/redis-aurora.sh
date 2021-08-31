@@ -7,14 +7,15 @@
 export SRCROOT
 export BENCHROOT
 
-# Create 
 . $SRCROOT/tests/aurora
+. minroot
 
 mkdir -p ../graphs
 
 aurteardown > /dev/null 2> /dev/null
 
-createroot
+# Create the root if necessary.
+createroot 2>/dev/null
 createmd
 
 DSCRIPT="$SRCROOT/scripts/ckpt.d"
