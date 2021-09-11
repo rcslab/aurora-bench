@@ -68,6 +68,7 @@ base_checkpoint_restore()
 	$SRCROOT/scripts/rest.d > $TMPREST 2> $TMPREST &
 	sleep $SLEEPTIME
 	NS=`cat $TMPCKPT | grep "Application stop time" | rev | cut -w -f 1 | rev | tr -d '\n'`
+	printf "$NS ns\t"
 	rm $TMPCKPT
 
 	restore_aurora &
@@ -79,6 +80,7 @@ base_checkpoint_restore()
 	printf "$NS ns\t"	
 	rm $TMPREST
 
+	sleep 5
 	teardown_aurora >/dev/null 2>/dev/null
 }
 
@@ -165,7 +167,8 @@ run_pillow() {
 	setup_aurora
 	./dlroot.sh >/dev/null 2>/dev/null
 	cp -r $PILLOWDIR $MNT/root/
-	chroot $MNT /root/pillow-perf/testsuite/run.py --runs 10000 scale > /dev/null 2> /dev/null &
+	chroot $MNT ln -s /usr/local/bin/python3 /usr/local/bin/python
+	LD_LIBRARY_PATH="LD_LIBRARY_PATH:/usr/local/lib/" chroot $MNT /root/pillow-perf/testsuite/run.py --runs 10000 scale > /dev/null 2> /dev/null &
 	sleep $SLEEPTIME
 }
 
