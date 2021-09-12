@@ -90,7 +90,7 @@ run_memcached()
     CONNECTIONS="-c $MEMCACHED_CONNECTIONS"
 
     memcached $USER $ADDRESS $THREADS $PORT_A $PIDFILE $CONNECTIONS &
-    PID=`pidof memcached`
+    sleep 1
 
     if [ "$SLS" = "on" ]; then
 	pid=`pidof memcached`
@@ -128,6 +128,7 @@ run_memcached()
 	-s $AURORA_MEMCACHED_URL:$MEMCACHED_PORT --noload \
 	$HOSTS > /tmp/out &
 
+    PID=`pidof mutilate`
     CHECK_ALIVE=`kill -0 $PID`
     CHECK_ALIVE=$?
     while [ "$CHECK_ALIVE" -eq 0 ];
