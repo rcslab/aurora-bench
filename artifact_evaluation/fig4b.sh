@@ -128,6 +128,7 @@ run_memcached()
 	-s $AURORA_MEMCACHED_URL:$MEMCACHED_PORT --noload \
 	$HOSTS > /tmp/out &
 
+    sleep 1
     PID=`pidof mutilate`
     CHECK_ALIVE=`kill -0 $PID`
     CHECK_ALIVE=$?
@@ -138,6 +139,7 @@ run_memcached()
 		echo "[Aurora] Problem with mutilate - restart asked"
 		kill -KILL $PID
 		kill -TERM `pidof memcached`
+		kill -TERM `pidof mutilate`
 		teardown_aurora
 		stop_clients
 		return 1

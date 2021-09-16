@@ -155,6 +155,7 @@ run_aurora_nowal()
 
 	db_bench baseline --sync=false --disable_wal=true > /tmp/out &
 	FUNC_PID="$!"
+	sleep 1
 
 	pid=`pidof db_bench`
 	$AURORACTL attach -o 1 -p $pid 2>> $LOG >> $LOG
