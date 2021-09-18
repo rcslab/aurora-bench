@@ -16,22 +16,11 @@ getrss() {
 	ps -o rss,pid | grep $1 | cut -d " " -f 1
 }
 
-
-setup() {
-	mount -t fdescfs fdesc /dev/fd
-	mount -t procfs proc /proc
-}
-
 checkpoint_aurora() {
 	$SLSCTL checkpoint -o "$OID" -r
 }
 restore_aurora() {
 	$SLSCTL restore -o "$OID" -s
-}
-
-teardown() {
-	umount /dev/fd >/dev/null 2>/dev/null
-	umount /proc >/dev/null 2>/dev/null
 }
 
 base_checkpoint_restore()
@@ -61,7 +50,7 @@ base_checkpoint_restore()
 	sleep $SLEEPTIME
 	sleep 5
 
-	pkill -SIGTERM dtrace 
+	pkill -SIGTERM dtrace
 	pkill -SIGTERM $NAME  >/dev/null 2>/dev/null
 	kill -SIGTERM $PID > /dev/null 2>/dev/null
 	sleep 2
@@ -71,10 +60,11 @@ base_checkpoint_restore()
 	printf "$NS ns\t"
 	rm $TMPCKPT
 
-	restore_aurora &
-	sleep $SLEEPTIME
+	restore_aurora >/dev/null 2>/dev/null &
+	sleep 2
 
 	pkill -SIGTERM dtrace
+	pkill -SIGTERM "slsctl"
 	sleep $SLEEPTIME 
 	NS=`cat $TMPREST | grep "Total time" | rev | cut -w -f 2 | rev | tr -d '\n'`
 	printf "$NS ns\t"	
@@ -114,8 +104,9 @@ run_firefox() {
 	setup_aurora
 	./dlroot.sh >/dev/null 2>/dev/null
 	LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib" chroot $MNT firefox -headless -createprofile artifact  >/dev/null 2>/dev/null
-	echo "user_pref(\"browser.tabs.remote.autostart\", false)" >> $MNT/root/.mozilla/firefox/*.artifact/prefs.js  
-	LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib" chroot $MNT tmux new-session -d `firefox -headless -P artifact >/dev/null 2> /dev/null` >/dev/null 2>/dev/null &
+	MOZILLAPATH=`ls $MNT/root/.mozilla/firefox/ | grep artifact`
+	echo "user_pref(\"browser.tabs.remote.autostart\", false);" >> "$MNT/root/.mozilla/firefox/$MOZILLAPATH/prefs.js"
+	LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib" chroot $MNT `firefox -headless -P artifact > /dev/null 2> /dev/null` 2>/dev/null &
 	sleep 7
 }
 
