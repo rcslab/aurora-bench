@@ -46,8 +46,8 @@ setup_script()
 
 	    # Memcached Benchmark Values
 	    MUTILATE_QPS=1000
-	    MUTILATE_TARGET_QPS=400000
-	    MUTILATE_TIME=15
+	    MUTILATE_TARGET_QPS=1000000
+	    MUTILATE_TIME=25
 
 	    # RocksDB Benchmark Values
 	    ROCKSDB_NUM=50000000
