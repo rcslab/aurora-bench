@@ -34,7 +34,7 @@ setup_mutilate()
     git clone https://github.com/rcslab/mutilate.git dependencies/mutilate
     cd dependencies/mutilate
 
-    set -- $EXTERNAL_HOSTS
+    set -- $ALL_HOSTS
     while [ -n "$1" ];
     do
 	echo "[Aurora] Setting up Client $1"
@@ -48,6 +48,35 @@ setup_mutilate()
 }
 
 
+setup_dsmb()
+{
+    echo "[Aurora] Setting up DSMB"
+    echo "COMMAND IS $COMPILE_DSMB"
+
+    # One-liner because we need to run it on the remote host, too.
+    COMPILE_DSMB="git clone https://github.com/rcslab/dsmb.git; mkdir dsmb/build; cd dsmb/build; cmake ..; make -j9"
+
+    # Download DSMB on the server since we need PPD.
+    PREVIOUS_PWD=`pwd`
+    cd dependencies; git clone https://github.com/rcslab/dsmb.git; mkdir dsmb/build; cd dsmb/build; cmake ..; make
+    cd $PREVIOUS_PWD
+
+    # Download DSMB on each host
+    set -- $ALL_HOSTS
+    while [ -n "$1" ];
+    do
+	echo "[Aurora] Setting up Client $1"
+	ssh $1 "cd $AURORA_CLIENT_DIR; git clone https://github.com/rcslab/dsmb.git; mkdir dsmb/build; cd dsmb/build; cmake ..; make" > /dev/null 2> /dev/null
+	shift
+    done
+
+    echo "[Aurora] Setting up Host"
+    scons > /dev/null 2> /dev/null
+    cd -
+}
+
+
+
 setup_ycsb()
 {
     # Setup YCSB
@@ -57,7 +86,7 @@ setup_ycsb()
     curl -O --location $YCSB_TAR
     tar -zxvf ycsb-0.17.0.tar.gz > /dev/null 2> /dev/null
 
-    set -- $EXTERNAL_HOSTS
+    set -- $ALL_HOSTS
     while [ -n "$1" ];
     do
 	echo "[Aurora] Setting up Client $1"
@@ -82,7 +111,7 @@ check_library()
     O2=`ls /usr/lib | grep $1`
     O3=`ls /lib | grep $1`
     if [ -z "$O1" ] && [ -z "$O2" ] && [ -z "$O3" ]; then
-	echo "Libary $1 not present locally, please install"
+	echo "Library $1 not present locally, please install"
     fi
 
 }
@@ -93,7 +122,7 @@ check_remote_library()
     O2=`ssh $2 ls /usr/lib | grep $1`
     O3=`ssh $2 ls /lib | grep $1`
     if [ -z "$O1" ] && [ -z "$O2" ] && [ -z "$O3" ]; then
-	echo "Libary $1 not present on remote $2, please install"
+	echo "Library $1 not present on remote $2, please install"
     fi
 }
 
@@ -243,6 +272,8 @@ setup_mutilate  > /dev/null
 echo "[Aurora] Setting up rocksdb"
 setup_rocksdb > /dev/null
 
+echo "[Aurora] Setting up DSMB"
+setup_dsmb > /dev/null
 
 wait
 echo "[Aurora] Setup Done"
