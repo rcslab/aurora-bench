@@ -4,7 +4,6 @@
 
 . ../aurora.config
 
-export SRCROOT
 export BENCHROOT
 
 . $SRCROOT/tests/aurora
@@ -12,17 +11,9 @@ export BENCHROOT
 
 mkdir -p ../graphs
 
-aurteardown > /dev/null 2> /dev/null
-
-# Create the root if necessary.
-createroot 2>/dev/null
-createmd
-
-DSCRIPT="$SRCROOT/scripts/ckpt.d"
 REDISSRV="redis-server"
 CONF="redis.freebsd.conf"
 TMPFILE="$OUT/redisinput"
-DPATH="$OUT/dtrace.output"
 # Add 50 MB of data to Redis. Redis has massive write amplification,
 # with its resident set size typically ballooning to 10x the amount
 # of data being inserted to it for a total memory usage of around 500MB.
@@ -30,23 +21,9 @@ SIZE="50"
 
 pkill $REDISSRV
 
-# Wait for the server to die
-wait 1
-
-export DISK
-export DISKPATH
-export MNT
-
-# Create the absolute minimal root for Redis
-aursetup
-installroot
-
-# The output of dtrace is piped to the proper file by the parent script.
-$DSCRIPT > $DPATH &
-DTRACEPID="$!"
-
+# Create a Redis instance.
 cp $CONF "$MNT/$CONF"
-chroot $MNT $REDISSRV $CONF &
+$REDISSRV $CONF &
 
 sleep 1
 
@@ -58,14 +35,7 @@ python3 "$BENCHROOT/artifact_evaluation/table7-aurora/redisgen.py" "$SIZE"  > "$
 cat "$TMPFILE" | redis-cli --pipe 
 rm "$TMPFILE"
 
-# Checkpoint to the disk, so that the results are comparable to CRIUs.
-slsosdcheckpoint $REDISPID
-
-kill $REDISPID
-kill $DTRACEPID
-
-# Wait for the workload to die so that the unmount succeeds.
-sleep 1
+time `echo "*1\r\nSAVE\r\n" | redis-cli --pipe`
 
 OUTFILE=../graphs/table7-aurora-column.txt
 echo "" > $OUTFILE
