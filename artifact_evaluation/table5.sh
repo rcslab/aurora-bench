@@ -73,9 +73,9 @@ printf "SIZE(Bytes)\tINCREMENTAL\tATOMIC\tJOURNAL\n" >> $DIR
 for POWER  in `seq 12 2 30`; do
     SIZE=$((2 ** $POWER))
     print_size $POWER $SIZE >> $DIR
-    printf `atomic_iterate $SIZE | cut -w -f 3 ` >> $DIR
-    printf "\t\t" >> $DIR
     printf `incremental_iterate $SIZE | cut -w -f 4` >> $DIR
+    printf "\t\t" >> $DIR
+    printf `atomic_iterate $SIZE | cut -w -f 3 ` >> $DIR
     printf "\t" >> $DIR
     printf `journal_iterate $SIZE` >> $DIR
     printf "\n " >> $DIR
