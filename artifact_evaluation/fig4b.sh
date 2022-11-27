@@ -169,7 +169,7 @@ run_memcached()
     # If using the SLS, create the Aurora partition.
     if [ "$SLS" = "on" ]; then
 	setup_aurora $FREQ >> $LOG 2>> $LOG
-	$AURORACTL partadd -o 1 -d -t $FREQ -b $BACKEND >> $LOG 2>> $LOG
+	$AURORACTL partadd $BACKEND -o 1 -d -t $FREQ >> $LOG 2>> $LOG
     fi
 
     # Invoke the memcached server command.

@@ -31,9 +31,9 @@ base_checkpoint_restore()
 	IS_DELTA=$4
 
 	if [ $IS_DELTA == "yes" ]; then
-	    $SLSCTL partadd -o "$OID" -l -b $BACKEND
+	    $SLSCTL partadd $BACKEND -o "$OID" -l
 	else 
-	    $SLSCTL partadd -o "$OID" -d -b $BACKEND
+	    $SLSCTL partadd $BACKEND -o "$OID" -d 
 	fi
 
 	$SLSCTL attach -o "$OID" -p "$PID"

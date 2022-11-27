@@ -148,7 +148,7 @@ run_ppd()
     if [ "$SLS" = "on" ]; then
 	echo "[Aurora] Attaching memcached Server to Aurora: $PID"
 	setup_aurora $FREQ >> $LOG 2>> $LOG
-	$AURORACTL partadd -o 1 -d -t $FREQ -b $BACKEND >> $LOG 2>> $LOG
+	$AURORACTL partadd $BACKEND -o 1 -d -t $FREQ >> $LOG 2>> $LOG
 	$AURORACTL attach -o 1 -p $PID >> $LOG 2>> $LOG
 	$AURORACTL checkpoint -o 1 -r >> $LOG 2>> $LOG
     fi

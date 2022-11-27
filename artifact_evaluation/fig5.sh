@@ -55,7 +55,7 @@ run_base_wal()
 	    continue
 	fi
 	echo "[Aurora] Running Rocksdb Baseline: WAL, Iteration $ITER"
-	setup_zfs_rocksdb >> $LOG 2>> $LOG
+	setup_zfs_rocksdb 
 	db_bench baseline --sync=true --disable_wal=false > /tmp/out
 	teardown_zfs >> $LOG 2>> $LOG
 	mv /tmp/out $DIR/$ITER.out
@@ -151,7 +151,7 @@ run_aurora_nowal()
 	echo "[Aurora] Running Rocksdb SLS: No WAL, Iteration $ITER ($MIN_FREQ)"
 	rm /tmp/out 2> /dev/null > /dev/null
 	stripe_setup_wal $MAX_FREQ >> $LOG 2>> $LOG
-	$AURORACTL partadd -o 1 -d -t $MIN_FREQ -b $BACKEND >> $LOG 2>> $LOG
+	$AURORACTL partadd $BACKEND -o 1 -d -t $MIN_FREQ >> $LOG 2>> $LOG
 
 	db_bench baseline --sync=false --disable_wal=true > /tmp/out &
 	FUNC_PID="$!"
@@ -207,7 +207,7 @@ clear_log
 if [ "$MODE" = "VM" ]; then
 	MAX_ITER=0
 else
-	MAX_ITER=0
+	MAX_ITER=4
 fi
 
 set -- $ROCKS_STRIPE1
